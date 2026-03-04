@@ -1,0 +1,84 @@
+---
+title: Multi-select
+description: Select multiple files at once for batch operations like opening, copying, or deleting
+---
+
+Flashlight supports selecting multiple files at once, allowing you to perform batch operations on several files simultaneously. This is useful for organizing, copying, or deleting multiple files in one action.
+
+## Selection methods
+
+### Toggle individual selection
+
+Click on files while holding the modifier key to toggle their selection:
+
+- **macOS**: `Cmd+Click`
+- **Windows/Linux**: `Ctrl+Click`
+
+Each click toggles the selection state of the clicked file. You can select non-adjacent files this way.
+
+### Range selection
+
+Select a range of files by clicking on one file, then holding Shift and clicking on another:
+
+- **All platforms**: `Shift+Click`
+
+This selects the first file, the last file, and all files in between. This works with the current result order.
+
+### Select all
+
+Select all visible search results with the keyboard shortcut:
+
+- **macOS**: `Cmd+A`
+- **Windows/Linux**: `Ctrl+A`
+
+This selects all files currently displayed in the search results, up to the result limit.
+
+## Visual feedback
+
+Selected files are highlighted in the results list, making it easy to see which files are currently selected. A selection counter appears showing how many files are selected.
+
+## Batch operations
+
+### Delete selected files
+
+Move selected files to trash:
+
+- **macOS**: `Cmd+Backspace`
+- **Windows/Linux**: `Ctrl+Backspace`
+
+This moves all selected files to the system trash (Recycle Bin on Windows).
+
+### Context menu actions
+
+Right-click on any selected file to access batch operations:
+
+- **Open** - Opens all selected files with their default applications
+- **Reveal in Finder/Explorer** - Opens file manager windows for all selected files
+- **Copy Path** - Copies paths of all selected files to clipboard (one per line)
+- **Copy Name** - Copies names of all selected files to clipboard
+- **Copy File** - Copies all selected files to clipboard for pasting
+- **Move to Trash** - Moves all selected files to trash
+
+Batch operations work on all selected files, not just the one you right-clicked.
+
+## Deselecting files
+
+To clear your selection:
+
+- Click on an empty area of the results list
+- Start a new search
+- Use `Cmd+Click` (or `Ctrl+Click`) on selected files to deselect them individually
+
+## Tips
+
+- You can combine selection methods: use `Cmd+Click` to select specific files, then `Shift+Click` to add ranges
+- The selection persists while you're viewing the same search results
+- Starting a new search clears the previous selection
+- Some operations (like rename) only work on a single file, not multiple selections
+- Be careful when performing batch delete operations - always verify your selection first
+
+## Limitations
+
+- Multi-select works only within the current search results
+- You cannot select files across different searches
+- The maximum number of files you can select is limited to the number of displayed results (default: 100)

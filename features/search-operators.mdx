@@ -1,0 +1,134 @@
+---
+title: Search operators
+description: Power up your searches with advanced operators to filter by extension, file type, size, and path
+---
+
+Flashlight supports powerful search operators that allow you to filter and refine your search results with precision. You can combine multiple operators in a single query to narrow down exactly what you're looking for.
+
+## Available operators
+
+### Extension filter
+
+Filter files by their extension using `ext:` or `extension:`:
+
+```
+ext:pdf
+ext:rs
+extension:json
+```
+
+You can combine this with search terms:
+
+```
+config ext:json
+report ext:pdf
+```
+
+### Type filter
+
+Use `type:` to filter by file type or extension:
+
+```
+type:folder        # Show only folders
+type:directory     # Same as folder
+type:dir          # Same as folder
+type:file         # Show only files
+type:pdf          # Same as ext:pdf
+```
+
+Examples:
+
+```
+Documents type:folder
+readme type:file
+```
+
+### Path filter
+
+Filter results to files whose path contains specific text using `in:` or `path:`:
+
+```
+in:Downloads
+in:Documents
+path:src
+path:projects
+```
+
+Examples:
+
+```
+config in:Documents
+test path:src
+```
+
+### Size filters
+
+Filter files by size using `size:>` (minimum) or `size:<` (maximum):
+
+```
+size:>10mb        # Files larger than 10 MB
+size:<1kb         # Files smaller than 1 KB
+size:>500         # Files larger than 500 bytes
+```
+
+Supported units:
+- `b` - bytes
+- `kb` or `k` - kilobytes (1024 bytes)
+- `mb` or `m` - megabytes (1024 KB)
+- `gb` or `g` - gigabytes (1024 MB)
+
+You can also use `>=` and `<=`:
+
+```
+size:>=5mb
+size:<=100kb
+```
+
+Examples:
+
+```
+log size:>10mb
+image size:<1mb in:Downloads
+```
+
+## Combining operators
+
+You can combine multiple operators in a single query to create powerful searches:
+
+```
+report ext:pdf size:>1mb in:Documents
+config ext:json path:src
+test ext:py type:file size:<10kb
+large size:>100mb
+```
+
+All operators must match for a file to be included in the results. Search terms and operators are processed together, so you can mix them freely:
+
+```
+annual report ext:pdf size:>5mb in:Documents
+```
+
+This searches for files containing "annual" and "report" in the name, with a `.pdf` extension, larger than 5 MB, and located in a path containing "Documents".
+
+## Wildcard searches
+
+In addition to operators, you can use wildcards in your search queries:
+
+- `*` matches any number of characters
+- `?` matches a single character
+
+Examples:
+
+```
+*.config.js       # Matches webpack.config.js, babel.config.js, etc.
+test?.py          # Matches test1.py, testA.py, etc.
+file*.txt         # Matches file1.txt, file_backup.txt, etc.
+```
+
+## Tips
+
+- Operators are case-insensitive: `ext:PDF` and `ext:pdf` work the same
+- You can use multiple operators of the same type in one query
+- Size filters only apply to files, not folders
+- Extension filters automatically exclude folders
+- All search terms and operators must match for a result to appear

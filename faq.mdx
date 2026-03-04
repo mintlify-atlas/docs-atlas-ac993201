@@ -1,0 +1,370 @@
+---
+title: Frequently Asked Questions
+description: Common questions about Flashlight
+---
+
+# Frequently Asked Questions
+
+Answers to common questions about Flashlight.
+
+## General
+
+<Accordion title="What is Flashlight?">
+  Flashlight is a fast, cross-platform file search application that lets you find files instantly across your entire system. It's similar to "Everything" on Windows, but works on macOS, Windows, and Linux.
+
+  Unlike built-in search tools (Spotlight, Windows Search), Flashlight:
+  - Searches in milliseconds, not seconds
+  - Supports advanced search operators like `ext:pdf size:>10mb`
+  - Works identically across all platforms
+  - Includes a powerful CLI tool for terminal users
+</Accordion>
+
+<Accordion title="How does Flashlight work?">
+  Flashlight uses a hybrid approach:
+
+  1. **First launch**: Scans your directories and builds a SQLite database index (~30 seconds for 1 million files)
+  2. **Startup**: Loads the entire index into RAM for instant searches
+  3. **Search**: Queries the in-memory cache using parallel processing (all CPU cores)
+  4. **File watching**: Monitors your filesystem and updates the index in real-time
+
+  This design means:
+  - No reindexing needed after restart
+  - Search results appear in &lt;25ms (typically)
+  - The index stays in sync automatically
+</Accordion>
+
+<Accordion title="Is Flashlight free?">
+  Yes, Flashlight is completely free and open source under the MIT license. There are no paid tiers, subscriptions, or premium features.
+
+  You can view the source code and contribute at [github.com/yang-29/flashlight](https://github.com/yang-29/flashlight).
+</Accordion>
+
+## Privacy & Security
+
+<Accordion title="Does Flashlight collect telemetry or analytics?">
+  No. Flashlight collects **zero telemetry, analytics, or usage data**.
+
+  Everything runs entirely on your local machine:
+  - Your file index is stored locally on your computer
+  - No data is ever sent to any server
+  - No network requests are made (except for update checks, which you can disable)
+  - No crash reports or error logs are uploaded
+
+  You can verify this by inspecting the open-source code.
+</Accordion>
+
+<Accordion title="Can Flashlight access my files?">
+  Flashlight only indexes file metadata (path, name, size, modification date). It does **not** read file contents during indexing.
+
+  File contents are only accessed when:
+  - You explicitly open a file preview (`Cmd+P`)
+  - You open a file (which uses your system's default app)
+
+  The indexed metadata is stored in a local SQLite database on your computer. No one else has access to this data.
+</Accordion>
+
+<Accordion title="Is my search history stored?">
+  Search history is stored **locally** in the SQLite database. It's used to provide search suggestions and recent searches.
+
+  You can clear your search history at any time from Settings, or by deleting the database file.
+</Accordion>
+
+## Comparison with Alternatives
+
+<Accordion title="How does Flashlight compare to Everything (Windows)?">
+  Flashlight is heavily inspired by Everything but designed to work across all platforms.
+
+  **Similarities:**
+  - Instant search results (&lt;25ms)
+  - Search operators and filters
+  - Low memory footprint
+  - No telemetry
+
+  **Advantages of Flashlight:**
+  - Cross-platform (macOS, Windows, Linux)
+  - Modern UI with dark mode
+  - File preview panel
+  - Built-in CLI tool with shell completions
+  - Open source
+
+  **Advantages of Everything:**
+  - Even faster on Windows (uses NTFS Master File Table)
+  - More mature with more features
+  - Smaller binary size
+</Accordion>
+
+<Accordion title="How does Flashlight compare to Spotlight (macOS)?">
+  Spotlight is macOS's built-in search tool. Here's how Flashlight compares:
+
+  **Advantages of Flashlight:**
+  - **Much faster**: Search results in &lt;25ms vs 1-5 seconds
+  - **More precise**: Filename-focused search without content indexing noise
+  - **Search operators**: `ext:pdf size:>10mb in:Downloads`
+  - **CLI tool**: Search from the terminal
+  - **No privacy concerns**: Zero telemetry, completely local
+  - **Cross-platform**: Same experience on Windows and Linux
+
+  **Advantages of Spotlight:**
+  - **Content search**: Searches inside files (PDFs, emails, etc.)
+  - **System integration**: Searches apps, contacts, calendar, etc.
+  - **Built-in**: No installation required
+  - **Siri integration**
+
+  Flashlight is optimized for finding files quickly by name, while Spotlight is a general-purpose search tool.
+</Accordion>
+
+<Accordion title="How does Flashlight compare to Alfred (macOS)?">
+  Alfred is a productivity app that includes file search among many other features.
+
+  **Advantages of Flashlight:**
+  - **Completely free**: No paid Powerpack required
+  - **Faster file search**: Dedicated file search engine
+  - **Cross-platform**: Works on Windows and Linux too
+  - **Open source**: Inspect and modify the code
+  - **Built-in CLI**: No additional setup needed
+
+  **Advantages of Alfred:**
+  - **Workflows**: Automation and custom actions
+  - **Web search**: Integrated search engines
+  - **Clipboard history**: Text snippet management
+  - **More mature**: Longer development history
+
+  Choose Flashlight if you primarily need fast file search. Choose Alfred if you want an all-in-one productivity tool.
+</Accordion>
+
+<Accordion title="How does Flashlight compare to FZF, fd, or ripgrep?">
+  These are excellent command-line tools, but serve different purposes:
+
+  **fzf**: A fuzzy finder for filtering lists. Not a file indexer.
+  **fd**: A fast file finder. Scans directories on each search (no index).
+  **ripgrep**: A fast grep tool for searching file contents.
+
+  **Flashlight's advantages:**
+  - **GUI + CLI**: Best of both worlds
+  - **Persistent index**: No scanning delay, instant results
+  - **Real-time updates**: File watcher keeps index in sync
+  - **User-friendly**: Non-technical users can use it easily
+
+  You can combine tools: Use Flashlight to quickly find files, then use `ripgrep` to search within them.
+</Accordion>
+
+## Features
+
+<Accordion title="What search operators does Flashlight support?">
+  Flashlight supports the following operators:
+
+  | Operator | Example | Description |
+  |----------|---------|-------------|
+  | `ext:` | `ext:pdf` | Filter by file extension |
+  | `type:` | `type:folder` | Filter by type (file, folder, or extension) |
+  | `in:` | `in:Downloads` | Path must contain this string |
+  | `path:` | `path:src` | Same as `in:` |
+  | `size:>` | `size:>10mb` | Minimum file size (supports b, kb, mb, gb) |
+  | `size:<` | `size:&lt;1kb` | Maximum file size |
+
+  You can combine multiple operators:
+  ```
+  report ext:pdf size:>1mb in:Documents
+  ```
+
+  Wildcards are also supported:
+  - `*` matches any characters: `*.config.js`
+  - `?` matches a single character: `test?.py`
+</Accordion>
+
+<Accordion title="Can I search inside file contents?">
+  No, Flashlight only searches file names and paths, not file contents.
+
+  This is by design:
+  - Content indexing is slow and resource-intensive
+  - It bloats the index size significantly
+  - Most users primarily search by filename
+
+  For content search, use:
+  - **GUI**: Your OS's built-in search (Spotlight, Windows Search)
+  - **CLI**: Tools like `ripgrep` or `grep`
+
+  You can combine Flashlight with content search tools:
+  ```bash
+  # Find files, then search their contents
+  fl s ext:md -p | xargs rg "keyword"
+  ```
+</Accordion>
+
+<Accordion title="Can I customize the global shortcut?">
+  Not yet. The global shortcut is currently hardcoded:
+  - macOS: `Cmd+Shift+Space`
+  - Windows/Linux: `Ctrl+Shift+Space`
+
+  Customizable shortcuts are planned for a future release.
+</Accordion>
+
+<Accordion title="Can I exclude specific directories?">
+  Not yet. Flashlight currently has a hardcoded list of excluded directories:
+
+  - `node_modules`, `.git`, `.svn`, `.hg`
+  - `__pycache__`, `.cache`, `.npm`
+  - `.cargo/registry`, `.rustup`
+  - System directories (Caches, Logs, Trash, etc.)
+
+  Custom exclusions are planned for a future release. For now, you can:
+  - Only index specific directories (don't index your entire drive)
+  - Use search operators to filter results: `config -in:node_modules`
+</Accordion>
+
+<Accordion title="Does Flashlight support network drives?">
+  Yes, you can add network drives to the indexed directories.
+
+  **Important notes:**
+  - Indexing will be slower over the network
+  - The file watcher may not detect changes on network drives (depends on the OS)
+  - You may need to manually trigger reindexing if files change
+
+  For best performance, only index local drives.
+</Accordion>
+
+<Accordion title="Can I use Flashlight on multiple computers?">
+  Yes, you can install Flashlight on as many computers as you want.
+
+  **Note:** The index database is not synced between computers. Each installation maintains its own local index.
+
+  Syncing the database is not recommended because:
+  - File paths differ between computers
+  - Index size can be large (100 MB+ for 1M files)
+  - The watcher needs to track local filesystem events
+</Accordion>
+
+## System Requirements
+
+<Accordion title="What are the minimum system requirements?">
+  | Platform | Minimum | Recommended |
+  |----------|---------|-------------|
+  | **macOS** | 10.15 (Catalina) | 12.0 (Monterey)+ |
+  | **Windows** | Windows 10 (1809) | Windows 11 |
+  | **Linux** | Ubuntu 20.04 / equivalent | Ubuntu 22.04+ |
+  | **RAM** | 512 MB free | 2 GB free |
+  | **Disk** | 100 MB for app | + space for index (~100 MB per 1M files) |
+
+  Memory usage scales with index size:
+  - 100K files: ~50-100 MB
+  - 500K files: ~100-200 MB
+  - 1M files: ~200-400 MB
+</Accordion>
+
+<Accordion title="Does Flashlight work on Apple Silicon (M1/M2/M3)?">
+  Yes! The macOS builds are universal binaries that run natively on both:
+  - Apple Silicon (M1, M2, M3, M4)
+  - Intel Macs
+
+  No Rosetta translation needed.
+</Accordion>
+
+<Accordion title="Which Linux distributions are supported?">
+  Flashlight provides:
+  - `.deb` packages (Ubuntu, Debian, Pop!_OS, Linux Mint, etc.)
+  - `.AppImage` (works on most distributions)
+
+  The AppImage should work on any modern Linux distribution with:
+  - GTK 3
+  - WebKit2GTK
+
+  Tested on:
+  - Ubuntu 20.04+
+  - Fedora 36+
+  - Arch Linux
+  - Pop!_OS 22.04+
+</Accordion>
+
+## Troubleshooting
+
+<Accordion title="Why is search slow?">
+  Search should typically return results in &lt;25ms. If it's slower:
+
+  **Possible causes:**
+  1. Very large index (1M+ files)
+  2. Complex wildcard queries
+  3. Low system resources
+
+  **Solutions:**
+  - Check memory usage (should be 200-400 MB for 1M files)
+  - Use more specific queries
+  - Reduce indexed directories
+  - Close memory-intensive apps
+
+  See the [Troubleshooting guide](/troubleshooting) for more details.
+</Accordion>
+
+<Accordion title="Why aren't my files showing up?">
+  If files aren't appearing in search:
+
+  1. **Wait for indexing**: Initial indexing takes ~30 seconds per 1M files
+  2. **Check indexed directories**: The parent directory must be in Settings → Indexed Directories
+  3. **Check exclusions**: Some directories are automatically excluded (`node_modules`, `.git`, etc.)
+  4. **Try reindexing**: Settings → Reindex
+
+  See [Troubleshooting → Indexing Issues](/troubleshooting#indexing-issues) for more details.
+</Accordion>
+
+<Accordion title="How do I reset Flashlight?">
+  To completely reset Flashlight:
+
+  1. Close Flashlight
+  2. Delete the application data directory:
+     - macOS: `~/Library/Application Support/flashlight/`
+     - Windows: `%APPDATA%/flashlight/`
+     - Linux: `~/.local/share/flashlight/`
+  3. Restart Flashlight (will reindex automatically)
+
+  See the [Troubleshooting guide](/troubleshooting#resetting-flashlight) for more details.
+</Accordion>
+
+## Development
+
+<Accordion title="Is Flashlight open source?">
+  Yes! Flashlight is open source under the MIT license.
+
+  - **Source code**: [github.com/yang-29/flashlight](https://github.com/yang-29/flashlight)
+  - **License**: MIT (free to use, modify, and distribute)
+  - **Tech stack**: Tauri (Rust) + SvelteKit + SQLite
+
+  Contributions are welcome! Check the GitHub repository for contribution guidelines.
+</Accordion>
+
+<Accordion title="How can I contribute?">
+  There are many ways to contribute:
+
+  1. **Report bugs**: Open an issue on GitHub with details
+  2. **Suggest features**: Share your ideas in GitHub Discussions
+  3. **Submit code**: Fork the repo, make changes, and open a pull request
+  4. **Improve docs**: Fix typos or add missing information
+  5. **Translate**: Help translate Flashlight to other languages (when i18n is added)
+
+  See the [GitHub repository](https://github.com/yang-29/flashlight) for more information.
+</Accordion>
+
+<Accordion title="What technologies does Flashlight use?">
+  **Frontend:**
+  - SvelteKit 2 + Svelte 5
+  - Tailwind CSS 4
+  - shadcn-svelte components
+
+  **Backend:**
+  - Tauri v2 (Rust)
+  - SQLite (WAL mode)
+  - rayon (parallel processing)
+  - notify (file watching)
+
+  **CLI:**
+  - clap (argument parsing)
+  - colored (terminal output)
+
+  See the [GitHub repository](https://github.com/yang-29/flashlight) for the full tech stack.
+</Accordion>
+
+## Still have questions?
+
+If your question isn't answered here:
+
+1. Check the [Troubleshooting guide](/troubleshooting)
+2. Search [GitHub Issues](https://github.com/yang-29/flashlight/issues)
+3. Ask in [GitHub Discussions](https://github.com/yang-29/flashlight/discussions)

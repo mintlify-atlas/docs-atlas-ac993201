@@ -1,0 +1,132 @@
+---
+title: Context menu
+description: Access file operations through the right-click context menu
+---
+
+Flashlight provides a context menu with common file operations. Right-click (or Control+Click on macOS) on any search result to access these actions.
+
+## Opening files
+
+### Open
+
+Opens the file with its default application. This is the same as double-clicking the file in your file manager.
+
+- **Shortcut**: `Enter` (for selected file)
+
+### Open With...
+
+Displays the native operating system "Open With" picker, showing applications compatible with the file type. This lets you choose a specific application to open the file.
+
+For example, you might want to open an HTML file in a text editor instead of a browser, or open an image in Photoshop instead of Preview.
+
+### Reveal in Finder/Explorer
+
+Opens your file manager (Finder on macOS, File Explorer on Windows, file browser on Linux) and highlights the file. This is useful when you want to see the file in context of its containing folder.
+
+- **Shortcut**: `Cmd+R` (macOS) or `Ctrl+R` (Windows/Linux)
+- **Label**: "Reveal in Finder" on macOS, "Reveal in Explorer" on Windows/Linux
+
+### Open in Terminal
+
+Opens a terminal window at the file's location. For files, the terminal opens in the parent directory. For folders, the terminal opens in that directory.
+
+This is useful for developers who need quick terminal access to a file's location.
+
+## File management
+
+### Rename
+
+Enables inline renaming of the file. The file name becomes editable in the results list:
+
+1. Right-click and select "Rename" or press `F2`
+2. Type the new name
+3. Press `Enter` to confirm or `Escape` to cancel
+
+- **Shortcut**: `F2`
+
+Note: You can only rename one file at a time, not multiple selections.
+
+### Move to Trash
+
+Moves the file to the system trash (Trash on macOS, Recycle Bin on Windows). The file is not permanently deleted and can be restored from the trash.
+
+- **Shortcut**: `Cmd+Backspace` (macOS) or `Ctrl+Backspace` (Windows/Linux)
+- **Works with multi-select**: Yes
+
+<Note>
+  Be careful when deleting multiple files. Always verify your selection before deleting.
+</Note>
+
+## Clipboard operations
+
+### Copy Path
+
+Copies the full path of the file to your clipboard.
+
+- **Shortcut**: `Cmd+C` (macOS) or `Ctrl+C` (Windows/Linux)
+- **Works with multi-select**: Yes (paths are copied one per line)
+
+Example copied path:
+```
+/Users/username/Documents/report.pdf
+```
+
+### Copy Name
+
+Copies just the file name (without the path) to your clipboard.
+
+- **Works with multi-select**: Yes (names are copied one per line)
+
+Example copied name:
+```
+report.pdf
+```
+
+### Copy File
+
+Copies the actual file(s) to your system clipboard. You can then paste the file into a folder in your file manager or into applications that accept file drops.
+
+- **Works with multi-select**: Yes
+
+## Multi-select behavior
+
+When you have multiple files selected:
+
+1. Right-click on any selected file
+2. Most context menu actions apply to **all selected files**, not just the one you clicked
+
+Supported batch operations:
+- Open (opens all selected files)
+- Reveal in Finder/Explorer (opens multiple windows)
+- Copy Path (copies all paths)
+- Copy Name (copies all names)
+- Copy File (copies all files)
+- Move to Trash (deletes all selected files)
+
+Operations that work on single files only:
+- Rename (only renames the clicked file)
+- Open With... (only applies to the clicked file)
+
+## Platform differences
+
+### macOS
+- "Reveal in Finder" label
+- Opens Terminal.app for "Open in Terminal"
+- Uses Trash for "Move to Trash"
+
+### Windows
+- "Reveal in Explorer" label
+- Opens Command Prompt or PowerShell for "Open in Terminal"
+- Uses Recycle Bin for "Move to Trash"
+
+### Linux
+- "Reveal in File Manager" label
+- Opens default terminal emulator for "Open in Terminal"
+- Uses system trash for "Move to Trash"
+
+## Tips
+
+- The context menu remembers your most recent actions
+- Use keyboard shortcuts for faster access to common operations
+- For batch operations, select multiple files first, then right-click on any selected file
+- If an operation fails (e.g., permission denied), an error message will appear

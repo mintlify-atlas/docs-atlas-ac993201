@@ -1,0 +1,798 @@
+---
+title: "Tauri Commands"
+description: "Complete reference for all Tauri commands available in Flashlight"
+---
+
+Flashlight exposes a comprehensive set of Tauri commands that can be invoked from the frontend using Tauri's `invoke()` API. All commands are defined in `lib.rs` and handle search, file operations, configuration, and more.
+
+## Usage
+
+Import and use Tauri's `invoke` function:
+
+```typescript
+import { invoke } from '@tauri-apps/api/core';
+
+const results = await invoke('search', {
+  query: 'readme',
+  limit: 50,
+  extensions: null,
+  profile: null
+});
+```
+
+## Search Commands
+
+### search
+
+Perform a search across indexed files with support for operators and filters.
+
+<ParamField path="query" type="string" required>
+  Search query string. Supports operators like `ext:`, `type:`, `in:`, `size:`
+</ParamField>
+
+<ParamField path="limit" type="number" required>
+  Maximum number of results to return (e.g., 50)
+</ParamField>
+
+<ParamField path="extensions" type="string[] | null">
+  Optional array of file extensions to filter by (e.g., `["rs", "ts"]`)
+</ParamField>
+
+<ParamField path="profile" type="string | null">
+  Optional profile name to use for extension filtering (e.g., "Code")
+</ParamField>
+
+<ResponseField name="results" type="SearchResult[]">
+  Array of search results sorted by relevance
+  
+  <ResponseField name="path" type="string">
+    Full path to the file
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    File or directory name
+  </ResponseField>
+  
+  <ResponseField name="isDir" type="boolean">
+    Whether this is a directory
+  </ResponseField>
+  
+  <ResponseField name="score" type="number">
+    Relevance score (higher is better)
+  </ResponseField>
+  
+  <ResponseField name="size" type="number">
+    File size in bytes
+  </ResponseField>
+  
+  <ResponseField name="modified" type="number">
+    Last modified timestamp (Unix epoch seconds)
+  </ResponseField>
+  
+  <ResponseField name="created" type="number">
+    Creation timestamp (Unix epoch seconds)
+  </ResponseField>
+</ResponseField>
+
+```typescript
+const results = await invoke<SearchResult[]>('search', {
+  query: 'config ext:json',
+  limit: 20,
+  extensions: null,
+  profile: null
+});
+
+console.log(`Found ${results.length} results`);
+results.forEach(r => console.log(`${r.name}: score ${r.score}`));
+```
+
+### get_index_status
+
+Get current indexing status and statistics.
+
+<ResponseField name="status" type="IndexStatus">
+  <ResponseField name="totalFiles" type="number">
+    Total number of files in the index
+  </ResponseField>
+  
+  <ResponseField name="isIndexing" type="boolean">
+    Whether indexing is currently in progress
+  </ResponseField>
+  
+  <ResponseField name="isLoadingCache" type="boolean">
+    Whether the in-memory cache is being loaded
+  </ResponseField>
+  
+  <ResponseField name="indexedDirs" type="string[]">
+    List of directories currently being indexed
+  </ResponseField>
+  
+  <ResponseField name="usingMft" type="boolean | undefined">
+    Windows only: whether MFT (Master File Table) is being used
+  </ResponseField>
+  
+  <ResponseField name="usingUsn" type="boolean | undefined">
+    Windows only: whether USN Journal is being used for file watching
+  </ResponseField>
+</ResponseField>
+
+```typescript
+const status = await invoke<IndexStatus>('get_index_status');
+
+if (status.isIndexing) {
+  console.log('Indexing in progress...');
+} else {
+  console.log(`Index ready: ${status.totalFiles} files`);
+}
+```
+
+### reindex
+
+Trigger a full reindex of all configured directories.
+
+```typescript
+await invoke('reindex');
+console.log('Reindexing started');
+```
+
+## File Operations
+
+### open_file
+
+Open a file with the system default application and track it in recent files.
+
+<ParamField path="path" type="string" required>
+  Full path to the file to open
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  File name (for recent files tracking)
+</ParamField>
+
+<ParamField path="isDir" type="boolean" required>
+  Whether this is a directory
+</ParamField>
+
+```typescript
+await invoke('open_file', {
+  path: '/Users/john/Documents/readme.md',
+  name: 'readme.md',
+  isDir: false
+});
+```
+
+### open_with_app
+
+Open a file with a specific application.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+<ParamField path="app" type="string" required>
+  Application name (e.g., "Visual Studio Code" on macOS, "code" on Linux)
+</ParamField>
+
+```typescript
+// macOS
+await invoke('open_with_app', {
+  path: '/Users/john/code.rs',
+  app: 'Visual Studio Code'
+});
+
+// Linux
+await invoke('open_with_app', {
+  path: '/home/john/code.rs',
+  app: 'code'
+});
+```
+
+### open_with_picker
+
+Show the native OS "Open With" dialog to choose an application.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+```typescript
+await invoke('open_with_picker', {
+  path: '/Users/john/document.pdf'
+});
+```
+
+Platform behavior:
+- **macOS**: Shows Launch Services picker with apps that can open the file type
+- **Windows**: Opens `shell32.dll,OpenAs_RunDLL` dialog
+- **Linux**: Uses `mimeopen --ask` or falls back to `xdg-open`
+
+### open_in_terminal
+
+Open a terminal window in the file's directory.
+
+<ParamField path="path" type="string" required>
+  Path to file or directory
+</ParamField>
+
+```typescript
+await invoke('open_in_terminal', {
+  path: '/Users/john/projects/flashlight'
+});
+```
+
+### reveal_in_folder
+
+Reveal the file in the system file manager.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+```typescript
+await invoke('reveal_in_folder', {
+  path: '/Users/john/Documents/report.pdf'
+});
+```
+
+Platform behavior:
+- **macOS**: `open -R` (reveals in Finder)
+- **Windows**: `explorer /select,`
+- **Linux**: Opens parent directory with `xdg-open`
+
+### move_to_trash
+
+Move a file to the system trash/recycle bin.
+
+<ParamField path="path" type="string" required>
+  Full path to the file or directory
+</ParamField>
+
+```typescript
+try {
+  await invoke('move_to_trash', {
+    path: '/Users/john/old_file.txt'
+  });
+  console.log('File moved to trash');
+} catch (error) {
+  console.error('Failed to trash file:', error);
+}
+```
+
+### rename_file
+
+Rename a file or directory.
+
+<ParamField path="path" type="string" required>
+  Current full path to the file
+</ParamField>
+
+<ParamField path="newName" type="string" required>
+  New name (not a full path, just the name)
+</ParamField>
+
+<ResponseField name="newPath" type="string">
+  The full path to the renamed file
+</ResponseField>
+
+```typescript
+try {
+  const newPath = await invoke<string>('rename_file', {
+    path: '/Users/john/old.txt',
+    newName: 'new.txt'
+  });
+  console.log('Renamed to:', newPath);
+} catch (error) {
+  console.error('Rename failed:', error);
+}
+```
+
+Error cases:
+- Empty name
+- Name contains path separators (`/` or `\`)
+- Target file already exists
+- Permission denied
+
+### copy_file_to_clipboard
+
+Copy a file to the system clipboard (not the path, the actual file).
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+```typescript
+await invoke('copy_file_to_clipboard', {
+  path: '/Users/john/image.png'
+});
+```
+
+Platform behavior:
+- **macOS**: Uses AppleScript to set clipboard
+- **Windows**: PowerShell `Set-Clipboard -Path`
+- **Linux**: Uses `xclip` with `text/uri-list` MIME type
+
+### share_file
+
+Open the native system share sheet for a file.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+```typescript
+await invoke('share_file', {
+  path: '/Users/john/photo.jpg'
+});
+```
+
+Platform availability:
+- **macOS**: ✅ Uses `NSSharingServicePicker`
+- **Windows**: ✅ Uses `DataTransferManager`
+- **Linux**: ❌ Not available (returns error)
+
+### get_file_info
+
+Get detailed metadata about a file.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+<ResponseField name="info" type="FileInfo">
+  <ResponseField name="path" type="string">
+    Full path
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    File name
+  </ResponseField>
+  
+  <ResponseField name="size" type="number">
+    File size in bytes
+  </ResponseField>
+  
+  <ResponseField name="isDir" type="boolean">
+    Whether this is a directory
+  </ResponseField>
+  
+  <ResponseField name="modified" type="number">
+    Last modified timestamp (Unix epoch seconds)
+  </ResponseField>
+  
+  <ResponseField name="created" type="number">
+    Creation timestamp (Unix epoch seconds)
+  </ResponseField>
+</ResponseField>
+
+```typescript
+const info = await invoke<FileInfo>('get_file_info', {
+  path: '/Users/john/document.pdf'
+});
+
+console.log(`${info.name}: ${info.size} bytes, modified ${new Date(info.modified * 1000)}`);
+```
+
+### get_file_preview
+
+Get a preview of a file's contents. See [File Operations](/api/file-operations) for detailed documentation.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/readme.md'
+});
+
+if (preview.previewType === 'text') {
+  console.log(preview.content);
+}
+```
+
+## History & Recents
+
+### get_recent_files
+
+Get recently opened files.
+
+<ParamField path="limit" type="number" required>
+  Maximum number of results
+</ParamField>
+
+<ResponseField name="files" type="RecentFileResult[]">
+  <ResponseField name="path" type="string">
+    Full path to the file
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    File name
+  </ResponseField>
+  
+  <ResponseField name="isDir" type="boolean">
+    Whether this is a directory
+  </ResponseField>
+  
+  <ResponseField name="openedAt" type="number">
+    Timestamp when file was opened (Unix epoch seconds)
+  </ResponseField>
+</ResponseField>
+
+```typescript
+const recent = await invoke<RecentFileResult[]>('get_recent_files', {
+  limit: 10
+});
+
+recent.forEach(file => {
+  const date = new Date(file.openedAt * 1000);
+  console.log(`${file.name} - ${date.toLocaleString()}`);
+});
+```
+
+### clear_recent_files
+
+Clear all recent files history.
+
+```typescript
+await invoke('clear_recent_files');
+```
+
+### add_search_history
+
+Add a search query to history (usually called automatically after search).
+
+<ParamField path="query" type="string" required>
+  Search query
+</ParamField>
+
+<ParamField path="resultCount" type="number" required>
+  Number of results found
+</ParamField>
+
+```typescript
+await invoke('add_search_history', {
+  query: 'readme',
+  resultCount: 42
+});
+```
+
+### get_search_history
+
+Get recent search queries.
+
+<ParamField path="limit" type="number" required>
+  Maximum number of results
+</ParamField>
+
+<ResponseField name="history" type="SearchHistoryResult[]">
+  <ResponseField name="query" type="string">
+    Search query
+  </ResponseField>
+  
+  <ResponseField name="searchedAt" type="number">
+    Timestamp (Unix epoch seconds)
+  </ResponseField>
+  
+  <ResponseField name="resultCount" type="number">
+    Number of results that were found
+  </ResponseField>
+</ResponseField>
+
+```typescript
+const history = await invoke<SearchHistoryResult[]>('get_search_history', {
+  limit: 20
+});
+```
+
+### delete_search_history
+
+Delete a specific search query from history.
+
+<ParamField path="query" type="string" required>
+  Search query to delete
+</ParamField>
+
+<ResponseField name="deleted" type="boolean">
+  Whether the query was found and deleted
+</ResponseField>
+
+```typescript
+const deleted = await invoke<boolean>('delete_search_history', {
+  query: 'readme'
+});
+```
+
+### clear_search_history
+
+Clear all search history.
+
+```typescript
+await invoke('clear_search_history');
+```
+
+## Configuration
+
+### get_config
+
+Get the current application configuration.
+
+<ResponseField name="config" type="Config">
+  <ResponseField name="indexedDirs" type="string[]">
+    Directories to index
+  </ResponseField>
+  
+  <ResponseField name="excludedDirs" type="string[]">
+    Directories to exclude (e.g., `node_modules`, `.git`)
+  </ResponseField>
+  
+  <ResponseField name="excludedExtensions" type="string[]">
+    File extensions to exclude
+  </ResponseField>
+  
+  <ResponseField name="includedExtensions" type="string[]">
+    File extensions to include (empty = all)
+  </ResponseField>
+  
+  <ResponseField name="maxDepth" type="number | null">
+    Maximum directory depth (null = unlimited)
+  </ResponseField>
+  
+  <ResponseField name="profiles" type="SearchProfile[]">
+    Search profiles (Docs, Code, Images, etc.)
+  </ResponseField>
+  
+  <ResponseField name="activeProfile" type="string | null">
+    Currently active profile name
+  </ResponseField>
+  
+  <ResponseField name="resultsLimit" type="number">
+    Default results limit
+  </ResponseField>
+  
+  <ResponseField name="showHiddenFiles" type="boolean">
+    Whether to show hidden files
+  </ResponseField>
+  
+  <ResponseField name="sortBy" type="'Score' | 'Name' | 'DateModified' | 'Size'">
+    Default sort order
+  </ResponseField>
+  
+  <ResponseField name="searchDebounceMs" type="number">
+    Search debounce delay in milliseconds
+  </ResponseField>
+  
+  <ResponseField name="indexOnStartup" type="boolean">
+    Whether to index on startup
+  </ResponseField>
+  
+  <ResponseField name="watchForChanges" type="boolean">
+    Whether to watch for file system changes
+  </ResponseField>
+</ResponseField>
+
+```typescript
+const config = await invoke<Config>('get_config');
+console.log('Indexed directories:', config.indexedDirs);
+```
+
+### save_config
+
+Save the entire configuration.
+
+<ParamField path="config" type="Config" required>
+  Complete configuration object
+</ParamField>
+
+```typescript
+const config = await invoke<Config>('get_config');
+config.resultsLimit = 100;
+config.watchForChanges = false;
+
+await invoke('save_config', { config });
+```
+
+### reset_config
+
+Reset configuration to default values.
+
+<ResponseField name="config" type="Config">
+  The new default configuration
+</ResponseField>
+
+```typescript
+const defaultConfig = await invoke<Config>('reset_config');
+```
+
+### get_profiles
+
+Get all search profiles.
+
+<ResponseField name="profiles" type="SearchProfile[]">
+  <ResponseField name="name" type="string">
+    Profile name
+  </ResponseField>
+  
+  <ResponseField name="icon" type="string">
+    Icon name (Lucide icon)
+  </ResponseField>
+  
+  <ResponseField name="extensions" type="string[]">
+    File extensions for this profile
+  </ResponseField>
+</ResponseField>
+
+```typescript
+const profiles = await invoke<SearchProfile[]>('get_profiles');
+profiles.forEach(p => console.log(`${p.name}: ${p.extensions.length} extensions`));
+```
+
+### set_active_profile
+
+Set the active search profile.
+
+<ParamField path="profileName" type="string | null" required>
+  Profile name to activate, or null to deactivate
+</ParamField>
+
+```typescript
+// Activate "Code" profile
+await invoke('set_active_profile', {
+  profileName: 'Code'
+});
+
+// Deactivate profile
+await invoke('set_active_profile', {
+  profileName: null
+});
+```
+
+### add_profile
+
+Add or update a search profile.
+
+<ParamField path="profile" type="SearchProfile" required>
+  Profile object with name, icon, and extensions
+</ParamField>
+
+```typescript
+await invoke('add_profile', {
+  profile: {
+    name: 'My Files',
+    icon: 'FileText',
+    extensions: ['txt', 'md', 'pdf']
+  }
+});
+```
+
+### delete_profile
+
+Delete a search profile.
+
+<ParamField path="profileName" type="string" required>
+  Name of profile to delete
+</ParamField>
+
+```typescript
+await invoke('delete_profile', {
+  profileName: 'My Files'
+});
+```
+
+### add_indexed_dir
+
+Add a directory to the indexed directories list.
+
+<ParamField path="dir" type="string" required>
+  Directory path to add
+</ParamField>
+
+```typescript
+await invoke('add_indexed_dir', {
+  dir: '/Users/john/Projects'
+});
+```
+
+### remove_indexed_dir
+
+Remove a directory from the indexed directories list.
+
+<ParamField path="dir" type="string" required>
+  Directory path to remove
+</ParamField>
+
+```typescript
+await invoke('remove_indexed_dir', {
+  dir: '/Users/john/Projects'
+});
+```
+
+## Type Definitions
+
+```typescript
+interface SearchResult {
+  path: string;
+  name: string;
+  isDir: boolean;
+  score: number;
+  size: number;
+  modified: number; // Unix timestamp
+  created: number;  // Unix timestamp
+}
+
+interface IndexStatus {
+  totalFiles: number;
+  isIndexing: boolean;
+  isLoadingCache: boolean;
+  indexedDirs: string[];
+  usingMft?: boolean;  // Windows only
+  usingUsn?: boolean;  // Windows only
+}
+
+interface RecentFileResult {
+  path: string;
+  name: string;
+  isDir: boolean;
+  openedAt: number; // Unix timestamp
+}
+
+interface SearchHistoryResult {
+  query: string;
+  searchedAt: number;   // Unix timestamp
+  resultCount: number;
+}
+
+interface FileInfo {
+  path: string;
+  name: string;
+  size: number;
+  isDir: boolean;
+  modified: number; // Unix timestamp
+  created: number;  // Unix timestamp
+}
+
+interface SearchProfile {
+  name: string;
+  icon: string;
+  extensions: string[];
+}
+
+interface Config {
+  indexedDirs: string[];
+  excludedDirs: string[];
+  excludedExtensions: string[];
+  includedExtensions: string[];
+  maxDepth: number | null;
+  profiles: SearchProfile[];
+  activeProfile: string | null;
+  resultsLimit: number;
+  showHiddenFiles: boolean;
+  sortBy: 'Score' | 'Name' | 'DateModified' | 'Size';
+  searchDebounceMs: number;
+  indexOnStartup: boolean;
+  watchForChanges: boolean;
+}
+```
+
+## Error Handling
+
+All Tauri commands return `Promise<T>` and may throw errors. Always wrap calls in try-catch:
+
+```typescript
+try {
+  const results = await invoke('search', {
+    query: 'readme',
+    limit: 50,
+    extensions: null,
+    profile: null
+  });
+} catch (error) {
+  console.error('Search failed:', error);
+  // Handle error (show notification, etc.)
+}
+```
+
+Common error types:
+- **Permission denied**: File system access errors
+- **Not found**: File doesn't exist
+- **Invalid input**: Bad parameters (empty name, invalid path, etc.)
+- **Platform not supported**: Feature not available on current OS

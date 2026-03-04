@@ -1,0 +1,283 @@
+---
+title: Configuration
+description: Configure indexed directories, exclusions, search profiles, and performance settings
+---
+
+## Configuration File
+
+Flashlight stores its configuration in a JSON file at:
+
+- **macOS**: `~/Library/Application Support/flashlight/config.json`
+- **Windows**: `%APPDATA%/flashlight/config.json`
+- **Linux**: `~/.config/flashlight/config.json`
+
+The configuration file is automatically created with sensible defaults on first launch.
+
+## Index Settings
+
+### Indexed Directories
+
+Specify which directories Flashlight should index and search. By default, Flashlight indexes:
+
+- **macOS**: Your home directory + `/Applications`
+- **Windows**: All available drives (C:\, D:\, E:\, etc.)
+- **Linux**: Your home directory
+
+```json
+{
+  "indexedDirs": [
+    "/Users/username",
+    "/Applications"
+  ]
+}
+```
+
+<Note>
+Changing indexed directories requires a reindex. Use the reindex command or restart the app to apply changes.
+</Note>
+
+### Excluded Directories
+
+Directories that should be skipped during indexing to improve performance and reduce clutter:
+
+```json
+{
+  "excludedDirs": [
+    "node_modules",
+    ".git",
+    ".svn",
+    ".hg",
+    "__pycache__",
+    ".cache",
+    "target",
+    "build",
+    "dist",
+    ".Trash",
+    "Library/Caches",
+    "Library/Application Support/Caches",
+    ".npm",
+    ".cargo/registry",
+    ".rustup"
+  ]
+}
+```
+
+<Info>
+Excluding build artifacts, dependency folders, and caches significantly reduces index size and improves search performance.
+</Info>
+
+### Extension Filters
+
+**Excluded Extensions** - File types to skip during indexing:
+
+```json
+{
+  "excludedExtensions": [
+    "tmp",
+    "temp",
+    "log",
+    "swp",
+    "swo",
+    "DS_Store"
+  ]
+}
+```
+
+**Included Extensions** - When set, only index files with these extensions (empty array = index all):
+
+```json
+{
+  "includedExtensions": []
+}
+```
+
+### Maximum Depth
+
+Limit directory traversal depth to prevent indexing deeply nested folders:
+
+```json
+{
+  "maxDepth": null  // null = unlimited (default)
+}
+```
+
+## Search Profiles
+
+Profiles are pre-configured extension filters for quick filtering. Create custom profiles for your workflow:
+
+```json
+{
+  "profiles": [
+    {
+      "name": "Docs",
+      "icon": "FileText",
+      "extensions": ["pdf", "doc", "docx", "txt", "md", "csv", "xls", "xlsx"]
+    },
+    {
+      "name": "Code",
+      "icon": "FileCode",
+      "extensions": ["js", "ts", "py", "rs", "go", "java", "c", "cpp", "html", "css"]
+    },
+    {
+      "name": "Images",
+      "icon": "Image",
+      "extensions": ["png", "jpg", "jpeg", "gif", "svg", "webp"]
+    }
+  ],
+  "activeProfile": null  // null = no profile active
+}
+```
+
+### Built-in Profiles
+
+Flashlight includes 5 default profiles:
+
+| Profile | Extensions |
+|---------|------------|
+| **Docs** | pdf, doc, docx, txt, rtf, odt, xls, xlsx, ppt, pptx, pages, numbers, key, md, csv |
+| **Code** | js, ts, jsx, tsx, py, rb, rs, go, java, c, cpp, h, swift, kt, php, vue, svelte, html, css, scss, json, yaml, yml, toml, xml, sql, sh, tex |
+| **Images** | png, jpg, jpeg, gif, svg, webp, ico, bmp, tiff, heic, psd |
+| **Audio** | mp3, wav, flac, aac, ogg, m4a, wma |
+| **Video** | mp4, mov, avi, mkv, webm, m4v, wmv |
+
+## UI Preferences
+
+```json
+{
+  "resultsLimit": 50,
+  "showHiddenFiles": false,
+  "sortBy": "Score"  // Options: "Score", "Name", "DateModified", "Size"
+}
+```
+
+## Performance Settings
+
+### Search Debounce
+
+Delay in milliseconds before executing a search after typing stops:
+
+```json
+{
+  "searchDebounceMs": 16  // ~1 frame at 60fps
+}
+```
+
+<Info>
+A debounce of 16ms provides immediate feedback while preventing excessive searches on every keystroke.
+</Info>
+
+### Index on Startup
+
+Controls whether Flashlight rebuilds the index on first launch:
+
+```json
+{
+  "indexOnStartup": true
+}
+```
+
+### Watch for Changes
+
+Enable real-time file system monitoring to keep the index up-to-date:
+
+```json
+{
+  "watchForChanges": true
+}
+```
+
+<Warning>
+Disabling the file watcher means the index won't update when files are created, modified, or deleted. You'll need to manually reindex to see changes.
+</Warning>
+
+## Managing Configuration
+
+### Via GUI
+
+Use the Tauri commands to manage configuration from the frontend:
+
+```typescript
+import { invoke } from '@tauri-apps/api/core';
+
+// Get current configuration
+const config = await invoke('get_config');
+
+// Save modified configuration
+await invoke('save_config', { config });
+
+// Reset to defaults
+const defaultConfig = await invoke('reset_config');
+
+// Manage profiles
+await invoke('set_active_profile', { profileName: 'Code' });
+await invoke('add_profile', { profile: { name: 'My Files', icon: 'Star', extensions: ['txt', 'md'] } });
+await invoke('delete_profile', { profileName: 'My Files' });
+
+// Manage indexed directories
+await invoke('add_indexed_dir', { dir: '/path/to/dir' });
+await invoke('remove_indexed_dir', { dir: '/path/to/dir' });
+```
+
+### Via CLI
+
+The CLI tool (`fl`) shares the same configuration file:
+
+```bash
+# View current configuration
+cat ~/.config/flashlight/config.json
+
+# Use a specific profile for search
+fl search "readme" --profile Code
+```
+
+## Configuration Reference
+
+Complete configuration schema:
+
+```typescript
+interface Config {
+  // Index settings
+  indexedDirs: string[];
+  excludedDirs: string[];
+  excludedExtensions: string[];
+  includedExtensions: string[];
+  maxDepth: number | null;
+
+  // Search profiles
+  profiles: SearchProfile[];
+  activeProfile: string | null;
+
+  // UI preferences
+  resultsLimit: number;
+  showHiddenFiles: boolean;
+  sortBy: 'Score' | 'Name' | 'DateModified' | 'Size';
+
+  // Performance
+  searchDebounceMs: number;
+  indexOnStartup: boolean;
+  watchForChanges: boolean;
+}
+
+interface SearchProfile {
+  name: string;
+  icon: string;  // Lucide icon name
+  extensions: string[];
+}
+```
+
+## Platform-Specific Notes
+
+### Windows
+
+- When running with administrator privileges, Flashlight can use the NTFS Master File Table (MFT) for faster initial indexing
+- USN Journal support for efficient file system monitoring (requires elevation)
+
+### macOS
+
+- Application Support directory is automatically created at first launch
+- Respects macOS hidden file attributes
+
+### Linux
+
+- Uses XDG Base Directory specification (`$XDG_CONFIG_HOME` or `~/.config`)
+- Requires `inotify` support for file watching (available on most modern distributions)

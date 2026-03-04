@@ -1,0 +1,626 @@
+---
+title: Architecture
+description: Deep dive into Flashlight's hybrid architecture combining SQLite persistence with in-memory caching and real-time file watching
+---
+
+## System Overview
+
+Flashlight uses a three-layer architecture designed for maximum speed while maintaining data persistence across app restarts:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Frontend (SvelteKit)                  │
+│  • Search UI • File Preview • Settings • Context Menu   │
+└─────────────────────┬───────────────────────────────────┘
+                      │ Tauri IPC
+┌─────────────────────▼───────────────────────────────────┐
+│                   Backend (Rust/Tauri)                   │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐  │
+│  │  In-Memory  │  │   SQLite     │  │ File Watcher  │  │
+│  │   Cache     │◄─┤   Database   │◄─┤   (notify)    │  │
+│  │ (EntryCache)│  │  (Persist)   │  │ (Real-time)   │  │
+│  └──────┬──────┘  └──────▲───────┘  └───────▲───────┘  │
+│         │                │                   │           │
+│    ┌────▼────────────────┴───────────────────┴───────┐  │
+│    │         Search Engine (rayon parallel)          │  │
+│    └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Core Components
+
+### 1. SQLite Database (Persistence Layer)
+
+**Location:**
+- macOS: `~/Library/Application Support/flashlight/flashlight.db`
+- Windows: `%APPDATA%/flashlight/flashlight.db`
+- Linux: `~/.local/share/flashlight/flashlight.db`
+
+**Purpose:** Persist the file index across app restarts so you never need to reindex.
+
+**Schema:**
+
+```sql
+CREATE TABLE files (
+    id INTEGER PRIMARY KEY,
+    path TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    is_dir INTEGER NOT NULL,
+    size INTEGER NOT NULL DEFAULT 0,
+    modified INTEGER NOT NULL DEFAULT 0,
+    created INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_name ON files(name);
+CREATE INDEX idx_path ON files(path);
+
+CREATE TABLE indexed_dirs (
+    id INTEGER PRIMARY KEY,
+    path TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE recent_files (
+    id INTEGER PRIMARY KEY,
+    path TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    is_dir INTEGER NOT NULL,
+    opened_at INTEGER NOT NULL
+);
+CREATE INDEX idx_recent_opened_at ON recent_files(opened_at DESC);
+
+CREATE TABLE search_history (
+    id INTEGER PRIMARY KEY,
+    query TEXT NOT NULL UNIQUE,
+    searched_at INTEGER NOT NULL,
+    result_count INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_search_history_at ON search_history(searched_at DESC);
+
+CREATE TABLE metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+```
+
+**Optimizations:**
+
+```rust
+// WAL mode for better concurrency and performance
+PRAGMA journal_mode = WAL;
+PRAGMA synchronous = NORMAL;  // Balance safety and speed
+PRAGMA cache_size = -64000;   // 64 MB cache
+PRAGMA temp_store = MEMORY;   // Use RAM for temp tables
+```
+
+### 2. In-Memory Cache (Speed Layer)
+
+**Purpose:** Enable instant searches without disk I/O.
+
+**Implementation:**
+
+```rust
+pub struct EntryCache {
+    entries: RwLock<Vec<FileEntry>>,  // Thread-safe read-write lock
+    is_loading: AtomicBool,           // Atomic loading state
+}
+
+pub struct FileEntry {
+    id: i64,
+    parent: Arc<str>,      // Shared parent path (memory optimization)
+    name: Box<str>,        // Owned filename
+    is_dir: bool,
+    size: u64,
+    modified: u32,         // Unix timestamp (u32 saves 4 bytes per entry)
+    created: u32,
+}
+```
+
+**Key Features:**
+
+- **RwLock**: Multiple concurrent readers, single writer
+- **Parking lot**: Fast, lightweight locking with no syscalls in uncontended case
+- **Memory-efficient**: ~300-400 bytes per entry for 1M files
+
+**Operations:**
+
+```rust
+impl EntryCache {
+    // Load entire index from SQLite into RAM
+    pub fn load_from_db(&self, db: &Database) {
+        self.is_loading.store(true, Ordering::Relaxed);
+        if let Ok(entries) = db.get_all_entries() {
+            let mut cache = self.entries.write();
+            *cache = entries;
+        }
+        self.is_loading.store(false, Ordering::Relaxed);
+    }
+
+    // Add new file (called by file watcher)
+    pub fn add(&self, path: String, name: String, is_dir: bool, ...) {
+        let mut cache = self.entries.write();
+        if !cache.iter().any(|e| e.path() == path) {
+            cache.push(FileEntry { /* ... */ });
+        }
+    }
+
+    // Remove file (called by file watcher)
+    pub fn remove(&self, path: &str) {
+        let mut cache = self.entries.write();
+        cache.retain(|e| e.path() != path);
+    }
+}
+```
+
+### 3. Search Engine (Query Layer)
+
+**Parallel Search with Rayon:**
+
+```rust
+use rayon::prelude::*;
+
+pub fn search_cached(
+    entries: &[FileEntry],
+    query: &str,
+    limit: usize,
+    extensions: Option<&Vec<String>>,
+) -> Vec<SearchResult> {
+    let ops = parse_operators(query);
+    let query_normalized = normalize_string(&ops.query);
+    
+    let mut results: Vec<_> = entries
+        .par_iter()  // ← Parallel iterator across all CPU cores
+        .filter(|entry| {
+            // Apply operators (ext:, in:, size:, type:)
+            matches_operators(entry, &ops) &&
+            // Apply extension filter
+            matches_extensions(entry.name, extensions) &&
+            // Apply text search
+            matches_query(entry, &query_normalized)
+        })
+        .map(|entry| {
+            let score = calculate_match_score(entry, &query_normalized);
+            (entry, score)
+        })
+        .collect();
+    
+    // Sort by score (highest first)
+    results.par_sort_unstable_by(|a, b| b.1.cmp(&a.1));
+    
+    results.truncate(limit);
+    results.into_iter().map(|(entry, score)| SearchResult::from(entry, score)).collect()
+}
+```
+
+**Scoring Algorithm:**
+
+Results are scored by relevance (higher = better match):
+
+```rust
+fn calculate_match_score(entry: &FileEntry, query: &str) -> u32 {
+    let name = entry.name.to_lowercase();
+    let path = entry.path().to_lowercase();
+    
+    let mut score = 0;
+    
+    // 1. Exact name match (highest priority)
+    if name == query {
+        score += 100_000;
+    }
+    // 2. Basename match ("abc" matches "abc.py")
+    else if name.starts_with(query) && name[query.len()..].starts_with('.') {
+        score += 95_000;
+    }
+    // 3. Name starts with query
+    else if name.starts_with(query) {
+        score += 60_000;
+    }
+    // 4. Word boundary match (camelCase, snake_case)
+    else if word_boundary_match(&name, query) {
+        score += 30_000;
+    }
+    // 5. Name contains query
+    else if let Some(pos) = name.find(query) {
+        score += 10_000 - (pos as u32 * 10);  // Earlier = higher score
+    }
+    // 6. Path contains query
+    else if path.contains(query) {
+        score += 1_000;
+    }
+    
+    // Modifiers
+    score += 5_000 / (name.len() as u32 + 1);  // Shorter names ranked higher
+    if !entry.is_dir {
+        score += 6_000;  // Files preferred over folders
+    }
+    
+    score
+}
+```
+
+### 4. File Watcher (Real-Time Updates)
+
+**Purpose:** Keep the index in sync with filesystem changes without manual reindexing.
+
+**Implementation:**
+
+```rust
+use notify::{Watcher, RecursiveMode, Event, EventKind};
+
+pub fn start_watcher_thread(
+    db: Database,
+    dirs: Vec<String>,
+    excluded_dirs: Vec<String>,
+    cache: Arc<EntryCache>,
+) -> Option<(JoinHandle<()>, BackendType)> {
+    let (tx, rx) = channel();
+    
+    let mut watcher = notify::recommended_watcher(tx).ok()?;
+    
+    // Watch all indexed directories
+    for dir in &dirs {
+        watcher.watch(Path::new(dir), RecursiveMode::Recursive).ok()?;
+    }
+    
+    let handle = std::thread::spawn(move || {
+        for event in rx {
+            match event.kind {
+                EventKind::Create(_) => {
+                    // File created: add to DB + cache
+                    if let Some(entry) = extract_file_info(&event.path) {
+                        db.insert_entry(&entry);
+                        cache.add(entry);
+                    }
+                }
+                EventKind::Remove(_) => {
+                    // File deleted: remove from DB + cache
+                    db.delete_entry(&event.path);
+                    cache.remove(&event.path);
+                }
+                EventKind::Modify(ModifyKind::Name(_)) => {
+                    // File renamed: update DB + cache
+                    db.update_entry(&event.path);
+                    cache.remove(&old_path);
+                    cache.add(new_entry);
+                }
+                _ => {}
+            }
+        }
+    });
+    
+    Some((handle, BackendType::from(&watcher)))
+}
+```
+
+**Platform Backends:**
+
+| Platform | Backend | Notes |
+|----------|---------|-------|
+| macOS | FSEvents | Efficient, volume-level monitoring |
+| Linux | inotify | Kernel-level file notifications |
+| Windows | ReadDirectoryChangesW | Per-directory monitoring |
+| Windows (elevated) | USN Journal | Volume-level, more efficient |
+
+### 5. File Indexer
+
+**Purpose:** Build the initial index by traversing the filesystem.
+
+**Implementation:**
+
+```rust
+use ignore::WalkBuilder;  // Respects .gitignore and hidden files
+
+pub fn build_index(&mut self, dirs: &[String]) -> Result<usize> {
+    let mut count = 0;
+    let start = Instant::now();
+    
+    for dir in dirs {
+        let walker = WalkBuilder::new(dir)
+            .hidden(false)  // Include hidden files
+            .git_ignore(true)
+            .threads(num_cpus::get())  // Parallel traversal
+            .build_parallel();
+        
+        walker.run(|| {
+            Box::new(|entry| {
+                if let Ok(entry) = entry {
+                    if !should_exclude(&entry) {
+                        let file_entry = FileEntry::from_path(&entry.path());
+                        self.db.insert_entry(&file_entry);
+                        count += 1;
+                    }
+                }
+                WalkState::Continue
+            })
+        });
+    }
+    
+    log::info!("Indexed {} files in {:?}", count, start.elapsed());
+    Ok(count)
+}
+```
+
+**Exclusions (hardcoded):**
+
+```rust
+const EXCLUDED_PATTERNS: &[&str] = &[
+    "node_modules", ".git", ".svn", ".hg",
+    "__pycache__", ".cache", ".npm",
+    ".cargo/registry", ".rustup",
+    "Library/Caches", "Library/Logs",
+    ".Trash", "$RECYCLE.BIN",
+    "System Volume Information",
+    ".DS_Store", "Thumbs.db",
+];
+```
+
+## Data Flow
+
+### Startup Sequence
+
+```
+1. Load Configuration
+   └─► Read config.json from app data directory
+
+2. Open SQLite Database
+   └─► Create if not exists
+   └─► Enable WAL mode
+   └─► Run migrations if needed
+
+3. Create In-Memory Cache
+   └─► Allocate EntryCache
+   └─► Set loading state
+
+4. Initialize Indexer
+   └─► Check if index exists
+   └─► If not: build_index()
+   └─► If yes: skip to step 5
+
+5. Load Cache from Database
+   └─► SELECT * FROM files
+   └─► Load into Vec<FileEntry>
+   └─► ~1-2 seconds for 1M entries
+
+6. Start File Watcher
+   └─► Watch all indexed directories
+   └─► Begin monitoring for changes
+
+7. App Ready
+   └─► UI shows search bar
+   └─► Search is instant
+```
+
+### Search Sequence
+
+```
+1. User Types Query
+   └─► Frontend debounces input (16ms)
+
+2. Frontend → Backend (Tauri IPC)
+   └─► invoke('search', { query, limit, extensions })
+
+3. Backend: Parse Query
+   └─► Extract operators (ext:, in:, size:)
+   └─► Normalize query string
+
+4. Backend: Search Cache (Parallel)
+   └─► Filter by operators
+   └─► Match query against name/path
+   └─► Calculate relevance scores
+   └─► Sort by score
+   └─► Truncate to limit
+   └─► ~10-50ms for 1M entries
+
+5. Backend → Frontend (Results)
+   └─► JSON serialization
+   └─► Return SearchResult[]
+
+6. Frontend: Render Results
+   └─► Display in table/list
+   └─► Total time: <100ms
+```
+
+### File Change Sequence
+
+```
+1. Filesystem Event
+   └─► OS notifies watcher
+
+2. Watcher Receives Event
+   └─► Debounce/coalesce events
+   └─► Filter excluded paths
+
+3. Update Database
+   └─► INSERT/UPDATE/DELETE in SQLite
+   └─► ~1-5ms per operation
+
+4. Update Cache
+   └─► cache.add() / cache.remove()
+   └─► Write lock acquired
+   └─► <1ms operation
+
+5. File Now Searchable
+   └─► Total latency: <100ms
+   └─► No manual reindex needed
+```
+
+## Threading Model
+
+```
+┌──────────────────────────────────────────────────┐
+│  Main Thread (Tauri Event Loop)                  │
+│  • UI rendering                                  │
+│  • IPC handling                                  │
+└──────────────┬───────────────────────────────────┘
+               │
+      ┌────────┴────────┬──────────────┬───────────┐
+      │                 │              │           │
+┌─────▼──────┐  ┌──────▼──────┐  ┌───▼────┐  ┌───▼───────┐
+│ Indexer    │  │ File Watcher│  │ Search │  │ Database  │
+│ Thread     │  │ Thread      │  │ Pool   │  │ Pool      │
+│ (startup)  │  │ (persistent)│  │(rayon) │  │ (rusqlite)│
+└────────────┘  └─────────────┘  └────────┘  └───────────┘
+```
+
+- **Main Thread**: Tauri event loop, handles IPC
+- **Indexer Thread**: Initial index build (runs once at startup if needed)
+- **Watcher Thread**: Monitors filesystem, updates DB + cache
+- **Search Pool**: Rayon's thread pool for parallel search (one per CPU core)
+- **Database Pool**: SQLite connection pool for concurrent access
+
+## Concurrency & Synchronization
+
+**Read-Write Locks:**
+
+```rust
+use parking_lot::RwLock;  // Faster than std::sync::RwLock
+
+pub struct AppState {
+    db: Database,                      // Thread-safe internally
+    cache: Arc<EntryCache>,            // Arc for shared ownership
+    indexer: Arc<RwLock<Indexer>>,     // RwLock for concurrent access
+    config: Arc<RwLock<Config>>,       // RwLock for concurrent access
+}
+```
+
+**Lock Ordering (to prevent deadlocks):**
+
+1. Config (read rarely, write on settings change)
+2. Indexer (read for status, write during reindex)
+3. Cache (read on every search, write on file changes)
+
+<Warning>
+Always acquire locks in the same order to prevent deadlocks. Never hold multiple write locks simultaneously.
+</Warning>
+
+## Platform-Specific Optimizations
+
+### Windows: MFT Enumeration
+
+When running with administrator privileges, use the Master File Table for faster indexing:
+
+```rust
+#[cfg(target_os = "windows")]
+fn enumerate_mft(volume: &str) -> Result<Vec<FileEntry>> {
+    // Open volume handle
+    let volume_handle = CreateFileW(
+        volume,
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        null_mut(),
+        OPEN_EXISTING,
+        0,
+        null_mut(),
+    );
+    
+    // Read MFT records
+    let mut mft_entries = Vec::new();
+    // ... NTFS_VOLUME_DATA_BUFFER, NTFS_FILE_RECORD_OUTPUT_BUFFER ...
+    
+    Ok(mft_entries)
+}
+```
+
+### macOS: FSEvents
+
+Use FSEvents for efficient directory monitoring:
+
+```rust
+// notify crate handles platform abstraction
+let watcher = notify::recommended_watcher(tx)?;
+// On macOS, this uses FSEvents automatically
+```
+
+### Linux: inotify Limits
+
+Increase inotify watch limits for large directory trees:
+
+```bash
+# Check current limit
+cat /proc/sys/fs/inotify/max_user_watches
+
+# Increase limit (requires sudo)
+echo 524288 | sudo tee /proc/sys/fs/inotify/max_user_watches
+```
+
+## Technology Stack
+
+### Backend (Rust)
+
+| Crate | Purpose |
+|-------|----------|
+| **tauri** | Desktop app framework (IPC, window management) |
+| **rusqlite** | SQLite database (bundled, no system dependency) |
+| **notify** | Cross-platform file watcher |
+| **ignore** | Fast directory traversal (respects .gitignore) |
+| **rayon** | Data parallelism for search |
+| **parking_lot** | Fast synchronization primitives |
+| **serde / serde_json** | Serialization for IPC |
+| **regex** | Wildcard pattern matching |
+| **unicode-normalization** | Diacritic-insensitive search |
+| **trash** | Cross-platform file deletion |
+| **open** | Open files with default app |
+
+### Frontend (TypeScript/Svelte)
+
+| Library | Purpose |
+|---------|----------|
+| **SvelteKit** | Frontend framework with SSG |
+| **Svelte 5** | Reactive UI with runes mode |
+| **Tailwind CSS 4** | Styling |
+| **shadcn-svelte** | UI component library |
+| **Lucide Svelte** | Icon set |
+| **highlight.js** | Syntax highlighting for preview |
+| **marked** | Markdown rendering for preview |
+| **@tauri-apps/api** | Tauri IPC bindings |
+
+## Design Decisions
+
+### Why SQLite + In-Memory Cache?
+
+**Alternative 1:** SQLite only (query database directly)
+- ❌ Too slow (~100-500ms per search with indexes)
+- ✅ No memory overhead
+
+**Alternative 2:** In-memory only
+- ✅ Instant search
+- ❌ Reindex on every app restart (30+ seconds)
+
+**Chosen: Hybrid approach**
+- ✅ Instant search (in-memory)
+- ✅ Persistence (SQLite)
+- ✅ Best of both worlds
+
+### Why Parallel Search?
+
+Modern CPUs have 4-16+ cores. Sequential search would only use 1 core, wasting 75-94% of available compute power.
+
+With Rayon:
+- 8 cores → ~6-7x faster
+- 16 cores → ~10-12x faster
+
+### Why File Watcher?
+
+**Without watcher:** User must manually reindex after file changes
+
+**With watcher:** Index updates automatically within 100ms of changes
+
+Trade-off: Small CPU/memory overhead for significantly better UX
+
+## Source Code Structure
+
+```
+src-tauri/src/
+├── lib.rs              # Main entry, Tauri commands, AppState, EntryCache
+├── database.rs         # SQLite operations (CRUD, bulk insert)
+├── indexer.rs          # Filesystem traversal and index building
+├── search.rs           # Parallel search, operator parsing, scoring
+├── watcher.rs          # Real-time file system monitoring
+├── config.rs           # Configuration management, profiles
+├── preview.rs          # File preview content extraction
+├── mft/                # Windows MFT/USN Journal support
+│   ├── mod.rs
+│   ├── enumeration.rs  # MFT enumeration
+│   ├── journal.rs      # USN Journal reading
+│   ├── privileges.rs   # Windows privilege elevation
+│   └── path_resolver.rs
+└── bin/fl.rs           # CLI tool
+```

@@ -1,0 +1,271 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for Flashlight
+---
+
+# Troubleshooting
+
+This guide covers common issues you might encounter while using Flashlight and how to resolve them.
+
+## Indexing Issues
+
+### No Search Results
+
+If you're not seeing any search results, the index may not have been built yet.
+
+**Solution:**
+
+1. Check the index status in the app (look for the indexing indicator)
+2. Wait for the initial indexing to complete (can take up to 30 seconds for ~1 million files)
+3. If indexing appears stuck, try manually triggering a reindex from Settings
+
+### Files Not Appearing in Search
+
+If specific files or directories aren't showing up in search results:
+
+**Check if the directory is indexed:**
+
+1. Open Settings
+2. Verify the parent directory is in the "Indexed Directories" list
+3. Add the directory if it's missing
+
+**Check if the path is excluded:**
+
+Flashlight automatically excludes certain directories:
+- `node_modules`, `.git`, `.svn`, `.hg`
+- `__pycache__`, `.cache`, `.npm`
+- `.cargo/registry`, `.rustup`
+- `Library/Caches`, `Library/Logs` (macOS)
+- `.Trash`, `$RECYCLE.BIN`
+- `System Volume Information` (Windows)
+
+<Note>
+Files in excluded directories will never appear in search results, even if their parent directory is indexed.
+</Note>
+
+### Index Out of Sync
+
+If recently created, moved, or deleted files aren't reflected in search results:
+
+**Solution:**
+
+1. The file watcher should update the index automatically within a few seconds
+2. If changes aren't appearing, try closing and reopening Flashlight
+3. As a last resort, trigger a full reindex from Settings
+
+<Warning>
+Reindexing will rebuild the entire database from scratch. For large directories (1M+ files), this can take 30+ seconds.
+</Warning>
+
+## Performance Issues
+
+### Slow Search Results
+
+If searches are taking longer than expected (>100ms):
+
+**Possible causes:**
+
+1. **Very large index**: Memory usage scales with index size (~200-400 MB per 1 million files)
+2. **Complex queries**: Wildcard patterns and multiple operators can increase search time
+3. **Low system resources**: Ensure you have at least 512 MB of free RAM
+
+**Solutions:**
+
+- Close other memory-intensive applications
+- Reduce the number of indexed directories
+- Use more specific search queries
+- Consider excluding large directories you don't need to search
+
+### High Memory Usage
+
+Flashlight loads the entire file index into RAM for fast searches.
+
+**Expected memory usage:**
+- 100K files: ~50-100 MB
+- 500K files: ~100-200 MB
+- 1M files: ~200-400 MB
+
+**If memory usage seems excessive:**
+
+1. Check how many files are indexed (Settings → Index Status)
+2. Remove unnecessary directories from the index
+3. Restart Flashlight to clear any memory leaks
+
+### Slow Startup
+
+If Flashlight takes a long time to start (>5 seconds):
+
+**This is expected on first launch**, as the index is being loaded from SQLite into RAM.
+
+**If startup remains slow after the first launch:**
+
+1. Check database size (should be ~100 MB per 1M files)
+2. Try moving the database to a faster drive (SSD recommended)
+3. Reduce the number of indexed files
+
+## Platform-Specific Issues
+
+### macOS
+
+#### Global Shortcut Not Working
+
+**Issue:** `Cmd+Shift+Space` doesn't open Flashlight.
+
+**Solution:**
+
+1. Check System Settings → Privacy & Security → Accessibility
+2. Ensure Flashlight has accessibility permissions
+3. If Flashlight is already in the list, try removing and re-adding it
+4. Restart Flashlight after granting permissions
+
+#### Permission Denied Errors
+
+**Issue:** Some directories can't be indexed.
+
+**Solution:**
+
+1. Grant Full Disk Access: System Settings → Privacy & Security → Full Disk Access
+2. Add Flashlight to the list
+3. Restart Flashlight
+
+<Note>
+Full Disk Access is required to index system directories and some user directories like Documents and Desktop.
+</Note>
+
+### Windows
+
+#### Global Shortcut Conflict
+
+**Issue:** `Ctrl+Shift+Space` doesn't work or conflicts with another app.
+
+**Solution:**
+
+Currently, the global shortcut is hardcoded. If it conflicts with another application:
+
+1. Close the conflicting application, or
+2. Change the shortcut in the conflicting application
+3. Future versions will support customizable shortcuts
+
+#### Hidden Files Not Indexed
+
+**Issue:** Files with the "Hidden" attribute aren't appearing.
+
+**Solution:**
+
+Flashlight respects Windows file attributes. Hidden files are automatically excluded. This is by design to avoid indexing system and temporary files.
+
+### Linux
+
+#### AppImage Doesn't Launch
+
+**Issue:** Double-clicking the AppImage does nothing.
+
+**Solution:**
+
+1. Make the AppImage executable:
+   ```bash
+   chmod +x flashlight_*.AppImage
+   ```
+2. Run from terminal:
+   ```bash
+   ./flashlight_*.AppImage
+   ```
+
+#### Global Shortcut Not Working
+
+**Issue:** `Ctrl+Shift+Space` doesn't register.
+
+**Solution:**
+
+This may be a compatibility issue with your desktop environment or window manager. Try:
+
+1. Checking for conflicting shortcuts in your DE settings
+2. Running Flashlight from the terminal to see error messages
+3. Using the system tray icon to open Flashlight as a workaround
+
+## Database Issues
+
+### Database Location
+
+Flashlight stores its SQLite database at:
+
+- **macOS**: `~/Library/Application Support/flashlight/flashlight.db`
+- **Windows**: `%APPDATA%/flashlight/flashlight.db`
+- **Linux**: `~/.local/share/flashlight/flashlight.db`
+
+### Corrupted Database
+
+**Symptoms:**
+- Flashlight crashes on startup
+- Error messages about database corruption
+- Search returns no results despite having files indexed
+
+**Solution:**
+
+1. Close Flashlight completely
+2. Navigate to the database location (see above)
+3. Rename `flashlight.db` to `flashlight.db.backup`
+4. Restart Flashlight (a new database will be created automatically)
+5. The index will rebuild on the next startup
+
+<Warning>
+Deleting or renaming the database will require a full reindex. Keep the backup until you confirm everything works.
+</Warning>
+
+### Resetting Flashlight
+
+To completely reset Flashlight to its initial state:
+
+1. Close Flashlight
+2. Delete the entire application data directory:
+   - macOS: `~/Library/Application Support/flashlight/`
+   - Windows: `%APPDATA%/flashlight/`
+   - Linux: `~/.local/share/flashlight/`
+3. Restart Flashlight
+4. Reconfigure your indexed directories
+
+## CLI Issues
+
+### `fl` Command Not Found
+
+If the CLI tool isn't in your PATH:
+
+**Solution:**
+
+1. Run the setup command:
+   ```bash
+   ./src-tauri/target/release/fl init
+   ```
+2. Restart your terminal
+3. Verify with `fl --version`
+
+**Manual setup:**
+
+Add the binary location to your PATH:
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+export PATH="$PATH:/path/to/flashlight/src-tauri/target/release"
+```
+
+### CLI Can't Find Database
+
+**Issue:** CLI shows "database not found" error.
+
+**Solution:**
+
+The CLI shares the same database as the GUI. Ensure:
+
+1. You've run the GUI app at least once (to create the database)
+2. The database exists at the expected location (see Database Location above)
+
+## Still Having Issues?
+
+If you're experiencing issues not covered here:
+
+1. Check the [FAQ](/faq) for common questions
+2. Search [GitHub Issues](https://github.com/yang-29/flashlight/issues) for similar problems
+3. Open a new issue with:
+   - Your OS and version
+   - Flashlight version (found in Settings → About)
+   - Steps to reproduce the problem
+   - Any error messages or logs

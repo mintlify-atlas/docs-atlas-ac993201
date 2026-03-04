@@ -1,0 +1,139 @@
+---
+title: Changelog
+description: Version history and release notes for Flashlight
+---
+
+# Changelog
+
+All notable changes to Flashlight are documented here.
+
+## v0.1.1 (Current)
+
+**Release Date:** March 2026
+
+### Features
+
+#### Core Search
+- **Instant Search**: Search millions of files in milliseconds with &lt;25ms typical latency
+- **Search Operators**: Advanced query syntax including `ext:`, `type:`, `in:`, `path:`, `size:>`, and `size:<`
+- **Wildcard Support**: Use `*` and `?` for pattern matching in filenames
+- **Diacritic-Insensitive Search**: "café" matches "cafe", "naïve" matches "naive"
+- **Smart Scoring**: Results ranked by relevance (exact matches, name starts with, word boundaries, etc.)
+- **Parallel Processing**: Utilizes all CPU cores for fast search across large indexes
+
+#### User Interface
+- **Global Shortcut**: Press `Cmd+Shift+Space` (macOS) or `Ctrl+Shift+Space` (Windows/Linux) from anywhere
+- **Quick Filters**: Instant filtering by All, Folders, Documents, Code, Images, Audio, or Video
+- **Multi-Select**: Select multiple files with Cmd+click, Shift+click, or Cmd+A
+- **File Preview Panel**: Preview text, code (syntax-highlighted), images, and markdown without opening
+- **Context Menu**: Right-click for Open, Reveal, Open With, Terminal, Rename, Copy, and Trash operations
+- **Sortable Columns**: Sort results by Name, Extension, Size, Modified, or Created date
+- **Search History**: Automatically saves recent searches with result counts
+- **Resizable Preview**: Drag divider to adjust preview panel width
+
+#### Indexing & Performance
+- **Persistent Index**: SQLite database survives restarts - no reindexing needed
+- **In-Memory Cache**: Entire index loaded into RAM for instant search
+- **Real-Time Updates**: File watcher monitors filesystem and updates index automatically
+- **Fast Initial Indexing**: ~1 million files indexed in under 30 seconds
+- **Smart Exclusions**: Automatically excludes `node_modules`, `.git`, caches, and system directories
+- **Cross-Platform**: Native performance on macOS (Universal binary), Windows, and Linux
+
+#### CLI Tool (`fl`)
+- **Full-Featured CLI**: Search, open, reveal, and manage files from the terminal
+- **Shared Database**: CLI and GUI use the same index for consistency
+- **Shell Completions**: Auto-completion for zsh, bash, and fish
+- **Search Commands**: `fl search` with operators, limits, sorting, and output formats
+- **File Operations**: Open, reveal, info, copy, trash commands
+- **Statistics**: `fl stats` shows file type distribution and largest files
+- **Duplicate Detection**: `fl dupes` finds files with identical names
+- **Recent Files**: `fl recent` lists recently opened files
+- **Search History**: `fl history` shows past queries
+- **Auto-Setup**: `fl init` automatically configures PATH and completions
+
+#### File Operations
+- **Open File**: Launch with default application
+- **Open With**: Native OS picker for choosing alternative applications
+- **Open in Terminal**: Open terminal at file location
+- **Reveal in Finder/Explorer**: Show file in system file manager
+- **Rename**: Inline rename with F2 keyboard shortcut
+- **Copy Path/Name/File**: Clipboard operations for selected files
+- **Move to Trash**: Safe deletion with system trash (not permanent)
+- **Batch Operations**: Perform operations on multiple selected files
+
+### Technical Specifications
+
+#### Architecture
+- **Frontend**: SvelteKit 2 + Svelte 5 (runes mode) + Tailwind CSS 4 + shadcn-svelte
+- **Backend**: Tauri v2 (Rust) + SQLite (WAL mode)
+- **Search Engine**: rayon (parallel in-memory search) + regex (wildcards) + unicode-normalization
+- **File Watching**: notify crate + USN Journal on Windows when elevated
+- **Database**: SQLite with indexes on name and path columns
+
+#### Performance Metrics
+- **Indexing Speed**: ~1 million files in &lt;30 seconds (first run)
+- **Startup Time**: 1-2 seconds to load 1 million entries from SQLite
+- **Search Latency**: &lt;25ms typical, &lt;100ms worst case
+- **Memory Usage**: ~200-400 MB for 1 million file index in RAM
+
+#### Platform Support
+- **macOS**: Universal binary (Apple Silicon + Intel), requires 10.15+ (Catalina)
+- **Windows**: 64-bit installer, requires Windows 10 (1809) or later
+- **Linux**: .deb package and AppImage, tested on Ubuntu 20.04+
+
+### Known Limitations
+
+<Note>
+These features are planned for future releases.
+</Note>
+
+- **Content Search**: Only searches filenames/paths, not file contents
+- **Fixed Global Shortcut**: Cannot customize `Cmd+Shift+Space` / `Ctrl+Shift+Space`
+- **Fixed Exclusions**: Cannot customize excluded directories (e.g., `node_modules`, `.git`)
+- **No Network Drive Watching**: File watcher may not detect changes on network drives
+- **No Cloud Sync**: Database is local-only, not synced between computers
+
+### Database Schema
+
+Flashlight uses SQLite with the following tables:
+
+- **files**: Main index (path, name, is_dir, size, modified, created)
+- **indexed_dirs**: List of directories being monitored
+- **recent_files**: Recently opened files for quick access
+- **search_history**: Past queries with result counts
+- **metadata**: Schema version and configuration
+
+**Database Location:**
+- macOS: `~/Library/Application Support/flashlight/flashlight.db`
+- Windows: `%APPDATA%/flashlight/flashlight.db`
+- Linux: `~/.local/share/flashlight/flashlight.db`
+
+### Privacy
+
+- **Zero Telemetry**: No usage data, analytics, or crash reports are collected
+- **Completely Local**: All data stays on your machine
+- **No Network Requests**: Except for optional update checks
+- **Open Source**: Audit the code yourself at [github.com/yang-29/flashlight](https://github.com/yang-29/flashlight)
+
+---
+
+## Roadmap
+
+<Note>
+Future versions will include:
+</Note>
+
+- Customizable global shortcuts
+- User-defined exclusion patterns
+- Saved search profiles
+- Tags and favorites
+- Internationalization (i18n)
+- Network drive improvement
+- File content preview for more formats
+- Plugin system
+
+---
+
+## License
+
+Flashlight is released under the MIT License. See [LICENSE](https://github.com/yang-29/flashlight/blob/main/LICENSE) for details.

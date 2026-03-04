@@ -1,0 +1,266 @@
+---
+title: Installation
+description: Download and install Flashlight on macOS, Windows, or Linux
+---
+
+Flashlight is available for macOS, Windows, and Linux. Choose your platform below to get started.
+
+## Download the latest release
+
+Download the latest version from the [GitHub Releases page](https://github.com/yang-29/flashlight/releases).
+
+<Tabs>
+  <Tab title="macOS">
+    ### macOS installation
+
+    Download the universal DMG file that works on both Apple Silicon and Intel Macs:
+
+    **File**: `Flashlight_x.x.x_universal.dmg`
+
+    <Steps>
+      <Step title="Download the DMG">
+        Download `Flashlight_x.x.x_universal.dmg` from the [latest release](https://github.com/yang-29/flashlight/releases/latest).
+      </Step>
+      
+      <Step title="Open the DMG file">
+        Double-click the downloaded DMG file to mount it.
+      </Step>
+      
+      <Step title="Drag to Applications">
+        Drag the Flashlight app to your Applications folder.
+      </Step>
+      
+      <Step title="Launch Flashlight">
+        Open Flashlight from your Applications folder or Spotlight.
+        
+        <Note>
+          On first launch, you may see a security warning because the app isn't signed by Apple. Right-click the app and select "Open" to bypass this warning.
+        </Note>
+      </Step>
+      
+      <Step title="Grant permissions">
+        Flashlight will request Full Disk Access to index your files. Click "Open System Settings" and enable Full Disk Access for Flashlight.
+        
+        <Warning>
+          Without Full Disk Access, Flashlight cannot index files in protected directories like Documents, Desktop, and Downloads.
+        </Warning>
+      </Step>
+    </Steps>
+
+    ### Global shortcut setup
+
+    The global shortcut (`Cmd+Shift+Space`) should work automatically. If it doesn't, you may need to grant Accessibility permissions:
+
+    1. Open **System Settings** > **Privacy & Security** > **Accessibility**
+    2. Add Flashlight to the list and enable it
+
+  </Tab>
+  
+  <Tab title="Windows">
+    ### Windows installation
+
+    Download the installer for 64-bit Windows:
+
+    **File**: `Flashlight_x.x.x_x64-setup.exe`
+
+    <Steps>
+      <Step title="Download the installer">
+        Download `Flashlight_x.x.x_x64-setup.exe` from the [latest release](https://github.com/yang-29/flashlight/releases/latest).
+      </Step>
+      
+      <Step title="Run the installer">
+        Double-click the installer to begin installation.
+        
+        <Note>
+          You may see a Windows SmartScreen warning. Click "More info" and then "Run anyway" to proceed.
+        </Note>
+      </Step>
+      
+      <Step title="Follow the setup wizard">
+        Follow the installation wizard to complete the setup. The default installation location is `C:\Program Files\Flashlight`.
+      </Step>
+      
+      <Step title="Launch Flashlight">
+        Flashlight will start automatically after installation. You can also launch it from the Start menu.
+      </Step>
+    </Steps>
+
+    ### Enhanced indexing (optional)
+
+    <Info>
+      Running Flashlight as administrator on Windows enables faster indexing using the Master File Table (MFT) and more efficient file watching via the USN Journal.
+    </Info>
+
+    To run with administrator privileges:
+
+    1. Right-click the Flashlight shortcut in the Start menu
+    2. Select **Run as administrator**
+    3. Flashlight will show "Using MFT" in the index status if successful
+
+  </Tab>
+  
+  <Tab title="Linux">
+    ### Linux installation
+
+    Flashlight is available as a `.deb` package for Debian/Ubuntu or as an `.AppImage` for other distributions.
+
+    #### Debian/Ubuntu (.deb)
+
+    **File**: `flashlight_x.x.x_amd64.deb`
+
+    <Steps>
+      <Step title="Download the .deb package">
+        Download `flashlight_x.x.x_amd64.deb` from the [latest release](https://github.com/yang-29/flashlight/releases/latest).
+      </Step>
+      
+      <Step title="Install with dpkg">
+        Open a terminal and run:
+        
+        ```bash
+        sudo dpkg -i flashlight_x.x.x_amd64.deb
+        ```
+      </Step>
+      
+      <Step title="Install dependencies (if needed)">
+        If you see dependency errors, run:
+        
+        ```bash
+        sudo apt-get install -f
+        ```
+      </Step>
+      
+      <Step title="Launch Flashlight">
+        Launch from your application menu or run `flashlight` in a terminal.
+      </Step>
+    </Steps>
+
+    #### AppImage (universal)
+
+    **File**: `flashlight_x.x.x_amd64.AppImage`
+
+    <Steps>
+      <Step title="Download the AppImage">
+        Download `flashlight_x.x.x_amd64.AppImage` from the [latest release](https://github.com/yang-29/flashlight/releases/latest).
+      </Step>
+      
+      <Step title="Make it executable">
+        Open a terminal and run:
+        
+        ```bash
+        chmod +x flashlight_x.x.x_amd64.AppImage
+        ```
+      </Step>
+      
+      <Step title="Run the AppImage">
+        Double-click the file or run it from the terminal:
+        
+        ```bash
+        ./flashlight_x.x.x_amd64.AppImage
+        ```
+      </Step>
+    </Steps>
+
+    <Note>
+      AppImages are portable and don't require installation. You can move the file anywhere and run it directly.
+    </Note>
+
+  </Tab>
+</Tabs>
+
+## Build from source
+
+If you want to build Flashlight from source, you'll need Rust, Node.js, and pnpm.
+
+### Prerequisites
+
+- [Rust](https://rustup.rs/) (latest stable)
+- [Node.js](https://nodejs.org/) (v18 or later)
+- [pnpm](https://pnpm.io/) (v8 or later)
+
+### Build steps
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/yang-29/flashlight.git
+    cd flashlight
+    ```
+  </Step>
+  
+  <Step title="Install dependencies">
+    ```bash
+    pnpm install
+    ```
+  </Step>
+  
+  <Step title="Run in development mode">
+    ```bash
+    pnpm tauri dev
+    ```
+    
+    This builds and launches Flashlight in development mode with hot reload.
+  </Step>
+  
+  <Step title="Build for production (optional)">
+    ```bash
+    pnpm tauri build
+    ```
+    
+    This creates a production build in `src-tauri/target/release/bundle/`.
+  </Step>
+</Steps>
+
+<Info>
+  The development build includes debug symbols and logging. Use `pnpm tauri build` for optimized production binaries.
+</Info>
+
+## Verify installation
+
+After installation, verify that Flashlight is working:
+
+1. **Launch the app** - Open Flashlight from your applications menu
+2. **Check the index status** - You should see "Indexing..." in the status bar as it builds the initial index
+3. **Test the global shortcut** - Press `Cmd+Shift+Space` (macOS) or `Ctrl+Shift+Space` (Windows/Linux) to open Flashlight from anywhere
+4. **Try a search** - Once indexing completes, search for a file you know exists
+
+<Note>
+  Initial indexing can take 30 seconds to a few minutes depending on how many files you have. Subsequent startups are instant.
+</Note>
+
+## Database location
+
+Flashlight stores its index database in your system's application data directory:
+
+- **macOS**: `~/Library/Application Support/flashlight/flashlight.db`
+- **Windows**: `%APPDATA%\flashlight\flashlight.db`
+- **Linux**: `~/.local/share/flashlight/flashlight.db`
+
+## Troubleshooting
+
+### macOS: "Flashlight cannot be opened"
+
+Right-click the app and select "Open" instead of double-clicking. This bypasses the Gatekeeper warning for unsigned apps.
+
+### Windows: SmartScreen warning
+
+Click "More info" and then "Run anyway". This is common for new apps that aren't widely distributed.
+
+### Linux: AppImage won't run
+
+Make sure you made it executable:
+
+```bash
+chmod +x flashlight_x.x.x_amd64.AppImage
+```
+
+### Global shortcut not working
+
+- **macOS**: Grant Accessibility permissions in System Settings > Privacy & Security > Accessibility
+- **Windows**: Try running as administrator
+- **Linux**: Check if the shortcut conflicts with another application
+
+## Next steps
+
+<Card title="Quick start" icon="rocket" href="/quickstart">
+  Learn how to use Flashlight effectively with keyboard shortcuts, search operators, and power-user features
+</Card>

@@ -1,0 +1,519 @@
+---
+title: CLI Commands
+description: Complete command reference for the fl command-line tool
+---
+
+The `fl` CLI provides a comprehensive set of commands for searching files, managing the index, and performing file operations.
+
+## Global Options
+
+```bash
+fl [OPTIONS] <COMMAND>
+```
+
+<ParamField path="-h, --help" type="flag">
+  Show help information
+</ParamField>
+
+<ParamField path="-V, --version" type="flag">
+  Show version information
+</ParamField>
+
+## search
+
+Search for files matching a query. Alias: `s`
+
+```bash
+fl search <query> [OPTIONS]
+fl s <query> [OPTIONS]
+```
+
+### Arguments
+
+<ParamField path="query" type="string" required>
+  Search query. Supports operators like `ext:rs`, `type:folder`, `size:>1mb`, `in:Downloads`.
+  Multiple words are automatically combined.
+</ParamField>
+
+### Options
+
+<ParamField path="-l, --limit" type="number" default="20">
+  Maximum number of results to return.
+  
+  Example: `fl s config -l 50`
+</ParamField>
+
+<ParamField path="-e, --ext" type="string[]">
+  Filter by file extension. Can be specified multiple times.
+  
+  Example: `fl s main -e rs -e toml`
+</ParamField>
+
+<ParamField path="-s, --sort" type="enum" default="relevance">
+  Sort results by field.
+  
+  Options: `relevance`, `name`, `size`, `modified`, `created`
+  
+  Example: `fl s document -s modified`
+</ParamField>
+
+<ParamField path="-f, --full" type="flag">
+  Show full paths instead of truncated.
+  
+  Example: `fl s config -f`
+</ParamField>
+
+<ParamField path="-o, --open" type="flag">
+  Open first result immediately with default application.
+  
+  Example: `fl s readme -o`
+</ParamField>
+
+<ParamField path="-c, --count" type="flag">
+  Only show count of matching files.
+  
+  Example: `fl s ext:py -c`
+</ParamField>
+
+<ParamField path="-p, --plain" type="flag">
+  Plain output (just file paths, one per line). Perfect for piping to other commands.
+  
+  Example: `fl s "*.json" -p | xargs cat`
+</ParamField>
+
+<ParamField path="--json" type="flag">
+  Output results as JSON array.
+  
+  Example: `fl s config --json | jq`
+</ParamField>
+
+<ParamField path="-H, --help" type="flag">
+  Show detailed help for the search command, including all operators.
+</ParamField>
+
+### Search Operators
+
+Operators can be combined with regular search terms:
+
+<ParamField path="ext:" type="string">
+  Filter by file extension.
+  
+  Example: `fl s ext:pdf report`
+</ParamField>
+
+<ParamField path="type:" type="string">
+  Filter by type: `folder`, `file`, or a specific extension.
+  
+  Example: `fl s type:folder Downloads`
+</ParamField>
+
+<ParamField path="in:" type="string">
+  Path must contain the specified string.
+  
+  Example: `fl s config in:Downloads`
+</ParamField>
+
+<ParamField path="path:" type="string">
+  Same as `in:` - path must contain the specified string.
+  
+  Example: `fl s path:src main.rs`
+</ParamField>
+
+<ParamField path="size:>" type="string">
+  Minimum file size. Supports units: `b`, `kb`, `mb`, `gb`.
+  
+  Example: `fl s "size:>10mb" video`
+</ParamField>
+
+<ParamField path="size:<" type="string">
+  Maximum file size. Supports units: `b`, `kb`, `mb`, `gb`.
+  
+  Example: `fl s "size:<1kb" config`
+</ParamField>
+
+### Wildcards
+
+<ParamField path="*" type="wildcard">
+  Match any characters.
+  
+  Example: `fl s "*.config.js"`
+</ParamField>
+
+<ParamField path="?" type="wildcard">
+  Match single character.
+  
+  Example: `fl s "test?.py"`
+</ParamField>
+
+### Examples
+
+```bash
+# Basic search
+fl search config
+fl s config
+
+# Search with extension filter
+fl s main ext:rs
+fl s readme -e md -e txt
+
+# Search with size constraints
+fl s "size:>10mb type:file"
+fl s "size:<1kb" config
+
+# Search in specific directory
+fl s in:Downloads document
+fl s path:src ext:rs
+
+# Sort results
+fl s document -s size        # Largest first
+fl s config -s modified      # Most recently modified
+fl s file -s name            # Alphabetically
+
+# Open first result
+fl s readme -o
+
+# Count matches
+fl s ext:rs -c
+
+# Plain output for piping
+fl s "*.json" -p | xargs cat
+fl s ext:py -p | xargs wc -l
+
+# JSON output
+fl s config --json | jq '.[] | .path'
+
+# Combine operators
+fl s "report ext:pdf size:>1mb in:Documents"
+```
+
+## open
+
+Open a file with the default application.
+
+```bash
+fl open <path>
+```
+
+<ParamField path="path" type="string" required>
+  Path to the file to open.
+</ParamField>
+
+### Examples
+
+```bash
+fl open ~/Documents/report.pdf
+fl open package.json
+```
+
+## reveal
+
+Reveal file in Finder (macOS) or Explorer (Windows/Linux).
+
+```bash
+fl reveal <path>
+```
+
+<ParamField path="path" type="string" required>
+  Path to the file to reveal.
+</ParamField>
+
+### Examples
+
+```bash
+fl reveal ~/Downloads/file.zip
+fl reveal package.json
+```
+
+## info
+
+Show detailed file information.
+
+```bash
+fl info <path>
+```
+
+<ParamField path="path" type="string" required>
+  Path to the file.
+</ParamField>
+
+### Output
+
+- File type (folder, file, or extension)
+- File size (for files)
+- Full path
+- Modified date
+- Created date
+- Permissions (Unix only)
+
+### Examples
+
+```bash
+fl info package.json
+fl info ~/Documents
+```
+
+## copy
+
+Copy file to clipboard.
+
+```bash
+fl copy <path>
+```
+
+<ParamField path="path" type="string" required>
+  Path to the file to copy.
+</ParamField>
+
+### Platform Behavior
+
+- **macOS**: Copies file to clipboard (can paste in Finder)
+- **Windows**: Copies file to clipboard (can paste in Explorer)
+- **Linux**: Copies file path to clipboard (requires xclip)
+
+### Examples
+
+```bash
+fl copy ~/.zshrc
+fl copy ~/Documents/report.pdf
+```
+
+## trash
+
+Move file to trash (does not permanently delete).
+
+```bash
+fl trash <path>
+```
+
+<ParamField path="path" type="string" required>
+  Path to the file to trash.
+</ParamField>
+
+### Examples
+
+```bash
+fl trash ~/old-file.txt
+fl trash "~/Desktop/Screenshot 2024-01-01.png"
+```
+
+## status
+
+Show index status and statistics.
+
+```bash
+fl status
+```
+
+### Output
+
+- Total files indexed
+- List of indexed directories
+
+### Examples
+
+```bash
+fl status
+```
+
+Output:
+
+```
+  ⚡ Flashlight
+  ──────────────────────────────
+
+  Files indexed  1,234,567
+
+  Indexed directories:
+    → /Users/you
+    → /Volumes/External
+```
+
+## stats
+
+Show detailed index statistics.
+
+```bash
+fl stats
+```
+
+### Output
+
+- Total files, folders, and size
+- Top 15 file types by count
+- Top 10 largest files
+
+### Examples
+
+```bash
+fl stats
+```
+
+Output:
+
+```
+  ⚡ Index Statistics
+  ──────────────────────────────────────────────────
+
+  OVERVIEW
+      Total files      1,234,567
+      Total folders    123,456
+      Total size       987.5G
+
+  TOP FILE TYPES
+             js  156,789    12.3G  ████████████████████
+             py   98,456     8.7G  ████████████
+            txt   76,543     2.1G  ██████████
+            ...
+
+  LARGEST FILES
+       📄   1.2G  ~/Movies/video.mp4
+       📄 987.5M  ~/Downloads/archive.zip
+            ...
+```
+
+## recent
+
+List recently opened files.
+
+```bash
+fl recent [OPTIONS]
+```
+
+<ParamField path="-l, --limit" type="number" default="10">
+  Maximum number of files to show.
+</ParamField>
+
+### Examples
+
+```bash
+fl recent
+fl recent -l 20
+```
+
+## dupes
+
+Find duplicate files (same name, different paths).
+
+```bash
+fl dupes [OPTIONS]
+```
+
+<ParamField path="-m, --min-size" type="string" default="1kb">
+  Minimum file size to consider. Supports units: `b`, `kb`, `mb`, `gb`.
+</ParamField>
+
+<ParamField path="-l, --limit" type="number" default="10">
+  Maximum duplicate groups to show.
+</ParamField>
+
+### Examples
+
+```bash
+fl dupes
+fl dupes -m 10mb -l 20
+```
+
+Output:
+
+```
+  ⚡ Duplicate Files
+  Files with same name (min size: 1kb)
+  ──────────────────────────────────────────────────
+
+  📄 config.json (3 copies) ~24.5K wasted
+       8.2K  ~/project1/config.json
+       8.2K  ~/project2/config.json
+       8.1K  ~/backup/config.json
+```
+
+## history
+
+Show or clear search history.
+
+```bash
+fl history [OPTIONS]
+```
+
+<ParamField path="-l, --limit" type="number" default="20">
+  Maximum history entries to show.
+</ParamField>
+
+<ParamField path="--clear" type="flag">
+  Clear all search history.
+</ParamField>
+
+### Examples
+
+```bash
+fl history
+fl history -l 50
+fl history --clear
+```
+
+## completions
+
+Generate shell completion script.
+
+```bash
+fl completions <shell>
+```
+
+<ParamField path="shell" type="enum" required>
+  Shell to generate completions for.
+  
+  Options: `zsh`, `bash`, `fish`, `powershell`, `elvish`
+</ParamField>
+
+### Examples
+
+```bash
+fl completions zsh > ~/.zsh/completions/_fl
+fl completions bash > ~/.bash_completion.d/fl.bash
+fl completions fish > ~/.config/fish/completions/fl.fish
+```
+
+## init
+
+Set up shell completions and PATH automatically.
+
+```bash
+fl init
+```
+
+This command:
+
+1. Detects your shell (zsh, bash, or fish)
+2. Creates completions directory
+3. Generates completions file
+4. Updates shell RC file with completion loading
+5. Creates symlink in `~/.local/bin`
+6. Adds `~/.local/bin` to PATH (if needed)
+
+### Examples
+
+```bash
+fl init
+```
+
+## reindex
+
+Rebuild the file index.
+
+```bash
+fl reindex
+```
+
+**Note**: This command is not yet implemented in the CLI. Use the GUI app to trigger reindexing.
+
+### Examples
+
+```bash
+fl reindex
+```
+
+Output:
+
+```
+! Reindexing not yet implemented in CLI.
+  Please use the GUI app to reindex.
+```

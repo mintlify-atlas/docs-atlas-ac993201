@@ -1,0 +1,727 @@
+---
+title: "File Operations"
+description: "Comprehensive guide to file operations and preview functionality"
+---
+
+Flashlight provides a rich set of file operations that integrate with native OS functionality. All file operations are implemented as Tauri commands and can be invoked from the frontend.
+
+## File Actions
+
+### Opening Files
+
+#### open_file
+
+Open a file with the system default application. This command also tracks the file in recent files history.
+
+<ParamField path="path" type="string" required>
+  Full path to the file or directory
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  File name (used for recent files tracking)
+</ParamField>
+
+<ParamField path="isDir" type="boolean" required>
+  Whether this is a directory
+</ParamField>
+
+```typescript
+import { invoke } from '@tauri-apps/api/core';
+
+await invoke('open_file', {
+  path: '/Users/john/Documents/report.pdf',
+  name: 'report.pdf',
+  isDir: false
+});
+```
+
+**Platform behavior:**
+- **macOS**: Uses `open` command
+- **Windows**: Uses `start` command
+- **Linux**: Uses `xdg-open`
+
+**Source:** `lib.rs:259-265`
+
+#### open_with_app
+
+Open a file with a specific application instead of the default.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+<ParamField path="app" type="string" required>
+  Application name or command
+</ParamField>
+
+```typescript
+// macOS - use app name
+await invoke('open_with_app', {
+  path: '/Users/john/code.rs',
+  app: 'Visual Studio Code'
+});
+
+// Windows - use executable
+await invoke('open_with_app', {
+  path: 'C:\\Users\\john\\code.rs',
+  app: 'code.exe'
+});
+
+// Linux - use command
+await invoke('open_with_app', {
+  path: '/home/john/code.rs',
+  app: 'code'
+});
+```
+
+**Platform implementations:**
+- **macOS**: `open -a "App Name" path`
+- **Windows**: `cmd /C start "" "app" "path"`
+- **Linux**: `app path`
+
+**Source:** `lib.rs:268-297`
+
+#### open_with_picker
+
+Show the native OS "Open With" dialog, displaying only applications that can handle the file type.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+```typescript
+await invoke('open_with_picker', {
+  path: '/Users/john/document.pdf'
+});
+```
+
+**Platform implementations:**
+
+**macOS** (lines 302-358):
+- Uses Launch Services via AppleScript
+- Queries `NSWorkspace.URLsForApplicationsToOpenURL` for compatible apps
+- Shows `choose from list` dialog with app names
+- Falls back to generic `choose application` if no apps found
+
+**Windows** (lines 360-369):
+- Uses `rundll32 shell32.dll,OpenAs_RunDLL path`
+- Shows native "Open With" dialog
+- Automatically filters by file type
+
+**Linux** (lines 371-385):
+- Tries `mimeopen --ask path` first
+- Falls back to `xdg-open path`
+- Requires `mimeopen` for app selection
+
+**Source:** `lib.rs:299-386`
+
+### Terminal Integration
+
+#### open_in_terminal
+
+Open a terminal window in the file's directory (or the directory itself if a folder).
+
+<ParamField path="path" type="string" required>
+  Path to file or directory
+</ParamField>
+
+```typescript
+// Open terminal in project directory
+await invoke('open_in_terminal', {
+  path: '/Users/john/projects/flashlight'
+});
+
+// Open terminal in file's directory
+await invoke('open_in_terminal', {
+  path: '/Users/john/projects/flashlight/src/main.rs'
+});
+```
+
+**Platform implementations:**
+
+**macOS** (lines 399-414):
+```applescript
+tell application "Terminal" 
+  to do script "cd '/path/to/dir'"
+tell application "Terminal" to activate
+```
+
+**Windows** (lines 416-422):
+```cmd
+cmd /C start cmd /K cd /d "C:\\path\\to\\dir"
+```
+
+**Linux** (lines 424-439):
+- Tries common terminal emulators in order:
+  - `gnome-terminal`
+  - `konsole`
+  - `xfce4-terminal`
+  - `xterm`
+- Returns error if none found
+
+**Source:** `lib.rs:388-440`
+
+### File Manager Operations
+
+#### reveal_in_folder
+
+Reveal/highlight the file in the system file manager.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+```typescript
+await invoke('reveal_in_folder', {
+  path: '/Users/john/Documents/report.pdf'
+});
+```
+
+**Platform implementations:**
+- **macOS**: `open -R path` (reveals in Finder)
+- **Windows**: `explorer /select, path`
+- **Linux**: `xdg-open parent_dir` (opens parent directory)
+
+**Source:** `lib.rs:476-502`
+
+### File Modification
+
+#### move_to_trash
+
+Move a file or directory to the system trash/recycle bin (doesn't permanently delete).
+
+<ParamField path="path" type="string" required>
+  Full path to the file or directory
+</ParamField>
+
+```typescript
+try {
+  await invoke('move_to_trash', {
+    path: '/Users/john/old_file.txt'
+  });
+  console.log('File moved to trash');
+} catch (error) {
+  console.error('Failed to move to trash:', error);
+}
+```
+
+Uses the `trash` crate which provides cross-platform trash functionality:
+- **macOS**: Moves to `~/.Trash`
+- **Windows**: Moves to Recycle Bin
+- **Linux**: Moves to `~/.local/share/Trash`
+
+**Source:** `lib.rs:504-507`
+
+#### rename_file
+
+Rename a file or directory in place.
+
+<ParamField path="path" type="string" required>
+  Current full path to the file
+</ParamField>
+
+<ParamField path="newName" type="string" required>
+  New name (filename only, not a full path)
+</ParamField>
+
+<ResponseField name="newPath" type="string">
+  The full path to the renamed file
+</ResponseField>
+
+```typescript
+try {
+  const newPath = await invoke<string>('rename_file', {
+    path: '/Users/john/old_name.txt',
+    newName: 'new_name.txt'
+  });
+  console.log('Renamed to:', newPath);
+  // Output: Renamed to: /Users/john/new_name.txt
+} catch (error) {
+  console.error('Rename failed:', error);
+}
+```
+
+**Validation:**
+- Rejects empty names
+- Rejects names with path separators (`/` or `\`)
+- Checks if target already exists
+- Prevents renaming root paths
+
+**Error cases:**
+```typescript
+// Empty name
+await invoke('rename_file', { 
+  path: '/file.txt', 
+  newName: '' 
+});
+// Error: "New name cannot be empty"
+
+// Path separator in name
+await invoke('rename_file', { 
+  path: '/file.txt', 
+  newName: '../other.txt' 
+});
+// Error: "Name cannot contain path separators"
+
+// Target exists
+await invoke('rename_file', { 
+  path: '/file.txt', 
+  newName: 'existing.txt' 
+});
+// Error: "A file named 'existing.txt' already exists"
+```
+
+**Source:** `lib.rs:509-536`
+
+### Clipboard Operations
+
+#### copy_file_to_clipboard
+
+Copy a file to the system clipboard (not the file path, the actual file object).
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+```typescript
+await invoke('copy_file_to_clipboard', {
+  path: '/Users/john/image.png'
+});
+
+// User can now paste the file in Finder, Explorer, etc.
+```
+
+**Platform implementations:**
+
+**macOS** (lines 541-553):
+```applescript
+set the clipboard to (POSIX file "/path/to/file")
+```
+
+**Windows** (lines 555-568):
+```powershell
+Set-Clipboard -Path 'C:\path\to\file'
+```
+
+**Linux** (lines 570-596):
+```bash
+echo "file:///path/to/file" | xclip -selection clipboard -t text/uri-list
+```
+Requires `xclip` to be installed.
+
+**Source:** `lib.rs:538-597`
+
+### Sharing
+
+#### share_file
+
+Open the native system share sheet for a file.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+```typescript
+try {
+  await invoke('share_file', {
+    path: '/Users/john/photo.jpg'
+  });
+} catch (error) {
+  // Linux or other unsupported platform
+  console.error('Share not supported:', error);
+}
+```
+
+**Platform implementations:**
+
+**macOS** (lines 602-638):
+- Uses `NSSharingServicePicker` via AppleScript
+- Creates temporary window as anchor point
+- Shows native share sheet with all sharing services
+- Supports AirDrop, Messages, Mail, etc.
+
+**Windows** (lines 640-660):
+- Uses `DataTransferManager.ShowShareUI()` via PowerShell
+- Shows Windows 10+ share dialog
+- Integrates with installed share targets
+
+**Linux** (lines 662-667):
+- Not supported (no universal share API)
+- Returns error suggesting "Copy File" instead
+
+**Source:** `lib.rs:599-668`
+
+### File Information
+
+#### get_file_info
+
+Get detailed metadata about a file or directory.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+<ResponseField name="info" type="FileInfo">
+  <ResponseField name="path" type="string">
+    Full path
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    File or directory name
+  </ResponseField>
+  
+  <ResponseField name="size" type="number">
+    File size in bytes (0 for directories)
+  </ResponseField>
+  
+  <ResponseField name="isDir" type="boolean">
+    Whether this is a directory
+  </ResponseField>
+  
+  <ResponseField name="modified" type="number">
+    Last modified timestamp (Unix epoch seconds)
+  </ResponseField>
+  
+  <ResponseField name="created" type="number">
+    Creation timestamp (Unix epoch seconds)
+  </ResponseField>
+</ResponseField>
+
+```typescript
+const info = await invoke<FileInfo>('get_file_info', {
+  path: '/Users/john/document.pdf'
+});
+
+console.log(`File: ${info.name}`);
+console.log(`Size: ${(info.size / 1024).toFixed(2)} KB`);
+console.log(`Modified: ${new Date(info.modified * 1000).toLocaleString()}`);
+console.log(`Created: ${new Date(info.created * 1000).toLocaleString()}`);
+```
+
+**Source:** `lib.rs:670-703`
+
+## File Preview System
+
+The preview system (`preview.rs`) provides content previews for various file types without opening external applications.
+
+### get_file_preview
+
+Get a preview of a file's contents.
+
+<ParamField path="path" type="string" required>
+  Full path to the file
+</ParamField>
+
+<ResponseField name="preview" type="FilePreview">
+  <ResponseField name="previewType" type="string">
+    Type of preview: `"text"`, `"image"`, `"video"`, `"audio"`, `"pdf"`, `"archive"`, `"directory"`, `"binary"`, or `"table"`
+  </ResponseField>
+  
+  <ResponseField name="content" type="string | null">
+    Preview content (for text/archive/directory types)
+  </ResponseField>
+  
+  <ResponseField name="lineCount" type="number | null">
+    Number of lines in the content
+  </ResponseField>
+  
+  <ResponseField name="truncated" type="boolean">
+    Whether content was truncated (over 500 lines or 512KB)
+  </ResponseField>
+  
+  <ResponseField name="tableData" type="TableData | null">
+    Structured table data (for CSV/XLSX files)
+  </ResponseField>
+</ResponseField>
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/readme.md'
+});
+
+if (preview.previewType === 'text') {
+  console.log(preview.content);
+  if (preview.truncated) {
+    console.log(`(showing ${preview.lineCount} of many lines)`);
+  }
+}
+```
+
+**Source:** `preview.rs:379-667`
+
+### Preview Types
+
+#### Text Files
+
+Supported extensions (lines 585-594):
+```
+txt, md, rs, js, ts, jsx, tsx, py, rb, go, java, c, cpp, h, hpp,
+css, scss, html, xml, json, yaml, yml, toml, ini, conf, sh, bash,
+sql, graphql, vue, svelte, php, swift, kt, lua, vim, tex, and more
+```
+
+Also supports files without extensions and special names:
+- `Makefile`, `Dockerfile`, `Gemfile`, `Rakefile`, `Procfile`
+- Files starting with `.` (dotfiles)
+
+**Limits:**
+- Max file size: 512 KB
+- Max preview lines: 500
+- Truncation indicated in response
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/config.json'
+});
+
+if (preview.previewType === 'text') {
+  // Syntax highlight the content
+  highlightCode(preview.content, 'json');
+}
+```
+
+#### Images
+
+Supported formats (lines 409-413):
+```
+png, jpg, jpeg, gif, webp, svg, ico, bmp, tiff, tif, heic, heif, avif
+```
+
+For images, `content` is null - the frontend should render using the file path:
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/photo.jpg'
+});
+
+if (preview.previewType === 'image') {
+  // Use convertFileSrc to get proper URL
+  const imageUrl = convertFileSrc(path);
+  imageElement.src = imageUrl;
+}
+```
+
+**Source:** `preview.rs:409-421`
+
+#### Video & Audio
+
+**Video formats** (lines 424-425):
+```
+mp4, mov, avi, mkv, webm, m4v, wmv, flv, ogv
+```
+
+**Audio formats** (lines 437-438):
+```
+mp3, wav, flac, aac, ogg, m4a, wma, opus
+```
+
+Similar to images, `content` is null. Render with HTML5 video/audio elements:
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/video.mp4'
+});
+
+if (preview.previewType === 'video') {
+  videoElement.src = convertFileSrc(path);
+}
+```
+
+**Source:** `preview.rs:423-445`
+
+#### PDF Files
+
+PDF preview type is detected but rendering is left to the frontend:
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/document.pdf'
+});
+
+if (preview.previewType === 'pdf') {
+  // Use PDF.js or native viewer
+  window.open(convertFileSrc(path));
+}
+```
+
+**Source:** `preview.rs:447-456`
+
+#### Spreadsheets (Tables)
+
+Supported formats:
+- **CSV/TSV** (lines 459-476)
+- **XLSX/XLS** (lines 478-495)
+
+Table data is structured for easy rendering:
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/data.csv'
+});
+
+if (preview.previewType === 'table' && preview.tableData) {
+  const { headers, rows, totalRows, totalCols } = preview.tableData;
+  
+  console.log(`Table: ${totalRows} rows × ${totalCols} columns`);
+  
+  // Render table
+  renderTable(headers, rows);
+  
+  if (preview.truncated) {
+    console.log(`Showing first ${rows.length} of ${totalRows} rows`);
+  }
+}
+```
+
+**Limits:**
+- Max rows: 100
+- Max columns: 20
+
+**Source:** `preview.rs:154-246`
+
+#### Office Documents
+
+**Word Documents (.docx)** (lines 248-308):
+- Extracts text from `word/document.xml` using XML parsing
+- Preserves paragraph structure
+- Returns plain text content
+
+**PowerPoint (.pptx)** (lines 310-377):
+- Extracts text from all slides
+- Separates slides with "--- Slide N ---" headers
+- Combines text from all text boxes
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/presentation.pptx'
+});
+
+if (preview.previewType === 'text') {
+  // Content contains all slide text
+  console.log(preview.content);
+  // --- Slide 1 ---
+  // Title
+  // Content...
+  // 
+  // --- Slide 2 ---
+  // ...
+}
+```
+
+**Source:** `preview.rs:248-377`
+
+#### Archives
+
+Supported formats (lines 562-563):
+- ZIP (lines 60-85)
+- TAR (lines 87-116)
+- TAR.GZ / TGZ (lines 119-150)
+
+Lists archive contents with file sizes:
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/archive.zip'
+});
+
+if (preview.previewType === 'archive') {
+  console.log(preview.content);
+  // 📁 src/
+  // 📄 src/main.rs (5.2 KB)
+  // 📄 src/lib.rs (12.3 KB)
+  // 📁 docs/
+  // 📄 README.md (2.1 KB)
+  
+  if (preview.truncated) {
+    console.log(`(showing first 100 of ${preview.lineCount} entries)`);
+  }
+}
+```
+
+**Limits:**
+- Max entries shown: 100
+
+**Source:** `preview.rs:41-151`
+
+#### Directories
+
+Lists directory contents (up to 100 entries):
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/projects'
+});
+
+if (preview.previewType === 'directory') {
+  const files = preview.content.split('\n');
+  console.log(`Directory contains ${files.length} items:`);
+  files.forEach(f => console.log(`  ${f}`));
+}
+```
+
+**Source:** `preview.rs:384-400`
+
+#### Binary Files
+
+For unsupported or binary files:
+
+```typescript
+const preview = await invoke<FilePreview>('get_file_preview', {
+  path: '/Users/john/app.exe'
+});
+
+if (preview.previewType === 'binary') {
+  console.log('Cannot preview binary file');
+  // Show file info instead
+}
+```
+
+**Source:** `preview.rs:612-620`
+
+## Type Definitions
+
+```typescript
+interface FileInfo {
+  path: string;
+  name: string;
+  size: number;
+  isDir: boolean;
+  modified: number; // Unix timestamp
+  created: number;  // Unix timestamp
+}
+
+interface FilePreview {
+  previewType: 'text' | 'image' | 'video' | 'audio' | 'pdf' | 'archive' | 'directory' | 'binary' | 'table';
+  content: string | null;
+  lineCount: number | null;
+  truncated: boolean;
+  tableData: TableData | null;
+}
+
+interface TableData {
+  headers: string[];
+  rows: string[][];
+  totalRows: number;
+  totalCols: number;
+}
+```
+
+## Error Handling
+
+All file operations can fail. Always wrap in try-catch:
+
+```typescript
+try {
+  await invoke('move_to_trash', { path: '/some/file.txt' });
+} catch (error) {
+  console.error('Operation failed:', error);
+  // Show user-friendly error message
+}
+```
+
+Common error scenarios:
+- **Permission denied**: User lacks file system permissions
+- **File not found**: Path doesn't exist
+- **File in use**: File is locked by another process
+- **Invalid name**: Rename with invalid characters
+- **Platform not supported**: Feature unavailable on current OS

@@ -1,80 +1,398 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick start
+description: Get up and running with Flashlight in minutes
 ---
 
-## Get started in three steps
+This guide will help you get started with Flashlight and learn the essential features to search files effectively.
 
-Get your documentation site running locally and make your first customization.
+## Launch Flashlight
 
-### Step 1: Set up your local environment
+After installing Flashlight, you can open it in two ways:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+1. **Global shortcut** (recommended):
+   - macOS: `Cmd+Shift+Space`
+   - Windows/Linux: `Ctrl+Shift+Space`
+
+2. **Application launcher**: Find Flashlight in your Applications folder (macOS), Start menu (Windows), or application menu (Linux)
+
+<Note>
+  The global shortcut works from anywhere, even when Flashlight isn't in focus. This is the fastest way to search.
+</Note>
+
+## Initial indexing
+
+On first launch, Flashlight will automatically start indexing your files. You'll see a status message in the app showing the progress.
+
+<Info>
+  Indexing ~1 million files takes under 30 seconds. You can start searching as soon as indexing begins—results will appear as files are added to the index.
+</Info>
+
+The index includes your entire home directory by default, excluding system directories and caches like:
+- `node_modules`
+- `.git`
+- `__pycache__`
+- `Library/Caches` (macOS)
+- `AppData/Local/Temp` (Windows)
+
+## Basic search
+
+Searching with Flashlight is simple:
+
+<Steps>
+  <Step title="Open Flashlight">
+    Press `Cmd+Shift+Space` (macOS) or `Ctrl+Shift+Space` (Windows/Linux).
+  </Step>
+  
+  <Step title="Start typing">
+    Type any part of a filename. Results appear instantly as you type.
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```
+    config
+    ```
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    This finds all files with "config" in the name, like:
+    - `config.json`
+    - `webpack.config.js`
+    - `app.config.ts`
+  </Step>
+  
+  <Step title="Navigate results">
+    Use arrow keys (`↑` / `↓`) to navigate through results.
+  </Step>
+  
+  <Step title="Open a file">
+    Press `Enter` to open the selected file with its default application.
+  </Step>
+</Steps>
 
-### Step 2: Deploy your changes
+<Note>
+  Flashlight's search is case-insensitive and diacritic-insensitive. Searching for "cafe" will match "café", and "resume" will match "résumé".
+</Note>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+## Search operators
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+Power up your searches with operators:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+### Filter by extension
 
-### Step 3: Go live
+Use `ext:` to find files with a specific extension:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```
+report ext:pdf
+```
+
+Finds all PDF files with "report" in the name.
+
+### Filter by file size
+
+Use `size:>` for minimum size or `size:<` for maximum size:
+
+```
+size:>10mb
+video size:<100mb
+```
+
+Supported units: `b`, `kb`, `mb`, `gb`
+
+### Filter by location
+
+Use `in:` or `path:` to search within a specific directory:
+
+```
+config in:Downloads
+readme path:projects
+```
+
+### Filter by type
+
+Use `type:` to filter by file type:
+
+```
+type:folder
+type:file
+type:pdf
+```
+
+### Combine operators
+
+You can combine multiple operators in one query:
+
+```
+report ext:pdf size:>1mb in:Documents
+config ext:js,json path:src
+```
+
+<Info>
+  When using multiple extensions with `ext:`, separate them with commas: `ext:js,ts,jsx`
+</Info>
+
+## Wildcard patterns
+
+Flashlight supports wildcard patterns for advanced searches:
+
+- `*` matches any characters
+- `?` matches a single character
+
+```
+*.config.js
+test?.py
+readme.*
+```
+
+## Quick filters
+
+Use the filter buttons at the top of the window or press `Tab` to cycle through preset filters:
+
+- **All** - Search everything
+- **Folders** - Directories only
+- **Documents** - PDFs, Word docs, spreadsheets, text files
+- **Code** - Source code files (JS, TS, Python, Rust, etc.)
+- **Images** - PNG, JPG, SVG, and other image formats
+- **Audio** - MP3, WAV, FLAC, and other audio files
+- **Video** - MP4, MOV, MKV, and other video files
+
+<Tabs>
+  <Tab title="Documents">
+    Includes: `pdf`, `doc`, `docx`, `txt`, `md`, `csv`, `xls`, `xlsx`, `ppt`, `pptx`, `rtf`, `odt`, `pages`, `numbers`, `key`
+  </Tab>
+  <Tab title="Code">
+    Includes: `js`, `ts`, `jsx`, `tsx`, `py`, `rs`, `go`, `java`, `c`, `cpp`, `h`, `hpp`, `css`, `scss`, `html`, `vue`, `svelte`, `json`, `yaml`, `yml`, `toml`, `sh`, `bash`, `zsh`, `rb`, `php`, `swift`, `kt`, `scala`, `ex`, `exs`, `hs`, `ml`, `sql`, `graphql`, `prisma`
+  </Tab>
+  <Tab title="Images">
+    Includes: `png`, `jpg`, `jpeg`, `gif`, `svg`, `webp`, `ico`, `bmp`, `tiff`, `heic`, `psd`
+  </Tab>
+  <Tab title="Audio">
+    Includes: `mp3`, `wav`, `flac`, `aac`, `ogg`, `m4a`, `wma`
+  </Tab>
+  <Tab title="Video">
+    Includes: `mp4`, `mov`, `avi`, `mkv`, `webm`, `m4v`, `wmv`
+  </Tab>
+</Tabs>
+
+## Keyboard shortcuts
+
+Flashlight is designed for keyboard-first navigation. Here are the essential shortcuts:
+
+### Navigation and search
+
+| Action | macOS | Windows/Linux |
+|--------|-------|---------------|
+| Open/Close Flashlight | `Cmd+Shift+Space` | `Ctrl+Shift+Space` |
+| Open selected file | `Enter` | `Enter` |
+| Navigate results | `↑` / `↓` | `↑` / `↓` |
+| Cycle filters | `Tab` / `Shift+Tab` | `Tab` / `Shift+Tab` |
+| Clear search | `Escape` | `Escape` |
+
+### File operations
+
+| Action | macOS | Windows/Linux |
+|--------|-------|---------------|
+| Rename file | `F2` | `F2` |
+| Delete selected | `Cmd+Backspace` | `Ctrl+Backspace` |
+| Copy path | `Cmd+C` | `Ctrl+C` |
+| Reveal in Finder/Explorer | `Cmd+R` | `Ctrl+R` |
+| Toggle preview | `Cmd+P` | `Ctrl+P` |
+
+### Multi-select
+
+| Action | macOS | Windows/Linux |
+|--------|-------|---------------|
+| Toggle selection | `Cmd+Click` | `Ctrl+Click` |
+| Select range | `Shift+Click` | `Shift+Click` |
+| Select all | `Cmd+A` | `Ctrl+A` |
+
+## Multi-select and batch operations
+
+Select multiple files to perform batch operations:
+
+<Steps>
+  <Step title="Select multiple files">
+    - **Cmd+Click** (Ctrl+Click on Windows/Linux) to toggle individual files
+    - **Shift+Click** to select a range
+    - **Cmd+A** to select all visible results
+  </Step>
+  
+  <Step title="Perform an action">
+    Right-click on any selected file to see available operations:
+    - Open all selected files
+    - Reveal in Finder/Explorer
+    - Copy paths
+    - Move to trash
+  </Step>
+</Steps>
+
+<Warning>
+  Be careful when deleting multiple files. The operation moves files to trash, but it's still a good idea to double-check your selection.
+</Warning>
+
+## File preview
+
+Toggle the preview panel with `Cmd+P` (macOS) or `Ctrl+P` (Windows/Linux) to see file contents without opening them:
+
+- **Images** - Thumbnail preview
+- **Text/Code** - Syntax-highlighted content
+- **Markdown** - Rendered preview
+- **Directories** - List of contents
+
+Drag the divider between the results and preview panel to resize it.
+
+## Context menu
+
+Right-click any file to access additional options:
+
+- **Open** - Open with default application
+- **Open With...** - Choose which application to open the file with
+- **Reveal in Finder/Explorer** - Show the file in your file manager
+- **Open in Terminal** - Open a terminal at the file's location
+- **Rename** - Rename the file inline
+- **Copy Path** - Copy the full file path to clipboard
+- **Copy Name** - Copy just the filename
+- **Copy File** - Copy the file itself to clipboard
+- **Move to Trash** - Delete the file
+
+## Command-line tool
+
+Flashlight includes a CLI tool (`fl`) that shares the same index as the GUI app.
+
+### Basic CLI usage
+
+Search from your terminal:
+
+```bash
+# Basic search
+fl search config
+
+# Short alias
+fl s readme
+
+# Limit results
+fl s config -l 10
+
+# Filter by extension
+fl s main -e rs,go
+
+# Sort results
+fl s video --sort size
+
+# Open first result
+fl s config.json -o
+
+# Plain output for piping
+fl s "*.md" -p | xargs grep "TODO"
+```
+
+### CLI file operations
+
+```bash
+# Open file with default app
+fl open ~/Documents/file.txt
+
+# Show in file manager
+fl reveal ~/Downloads
+
+# Show file details
+fl info package.json
+
+# Copy file to clipboard
+fl copy ~/.zshrc
+
+# Move to trash
+fl trash ~/old-file.txt
+```
+
+### CLI index commands
+
+```bash
+# Show index statistics
+fl status
+
+# Detailed statistics (file types, sizes)
+fl stats
+
+# Find duplicate files
+fl dupes
+
+# List recently opened files
+fl recent
+
+# View search history
+fl history
+```
+
+### Set up CLI (from source)
+
+If you built Flashlight from source, install the CLI tool:
+
+```bash
+./src-tauri/target/release/fl init
+```
+
+This automatically:
+- Adds `fl` to your PATH
+- Sets up shell completions (zsh/bash/fish)
+
+## Real-time updates
+
+Flashlight's file watcher keeps the index synchronized automatically:
+
+- **Create a file** - Appears in search results within seconds
+- **Rename a file** - Updated in the index immediately
+- **Delete a file** - Removed from search results
+- **Move a file** - Path updated in the index
+
+<Info>
+  On Windows, when run with administrator privileges, Flashlight uses the USN Journal for even faster file monitoring.
+</Info>
+
+## Tips and tricks
+
+### Search performance
+
+- Flashlight searches are instant, but longer queries can help narrow results
+- Use operators early in your query for better performance: `ext:pdf report` is faster than `report ext:pdf`
+- The first word in your search is the primary filter—make it specific
+
+### Common search patterns
+
+```
+# Find large files
+size:>100mb
+
+# Recent documents
+ext:pdf,doc,docx
+
+# Code in a specific project
+component path:myproject ext:tsx
+
+# Config files
+*.config.* OR *rc
+
+# All markdown files
+ext:md
+
+# Temporary files to clean up
+type:file size:>50mb in:Downloads
+```
+
+### Customizing indexed directories
+
+By default, Flashlight indexes your home directory. You can add or exclude directories in the settings (coming soon).
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
+Now that you know the basics, explore more features:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Search operators" icon="filter" href="/features/search-operators">
+    Master advanced search operators and filters
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/cli/commands">
+    Full command-line tool documentation
+  </Card>
+  <Card title="Keyboard shortcuts" icon="keyboard" href="/features/keyboard-shortcuts">
+    Complete list of keyboard shortcuts
+  </Card>
+  <Card title="Configuration" icon="gear" href="/advanced/configuration">
+    Customize Flashlight to fit your workflow
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

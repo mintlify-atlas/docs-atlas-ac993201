@@ -1,0 +1,498 @@
+---
+title: CLI Examples
+description: Real-world usage examples for the fl command-line tool
+---
+
+Practical examples of using the `fl` CLI tool for common tasks.
+
+## Basic Searches
+
+### Find a file by name
+
+```bash
+fl search config
+fl s readme
+```
+
+### Search in a specific directory
+
+```bash
+fl s config in:Downloads
+fl s "report in:Documents"
+```
+
+### Find files by extension
+
+```bash
+fl s ext:pdf
+fl s main ext:rs
+fl s -e py -e js
+```
+
+### Find folders
+
+```bash
+fl s type:folder node_modules
+fl s type:folder in:projects
+```
+
+## Advanced Searches
+
+### Large files
+
+```bash
+# Files over 100MB
+fl s "size:>100mb"
+
+# Videos over 1GB
+fl s "size:>1gb" ext:mp4
+
+# Large files in Downloads
+fl s "size:>50mb in:Downloads"
+```
+
+### Small files
+
+```bash
+# Tiny config files
+fl s "size:<10kb" config
+
+# Empty or nearly empty files
+fl s "size:<1kb" ext:txt
+```
+
+### Combining operators
+
+```bash
+# Large PDFs in Documents
+fl s "ext:pdf size:>5mb in:Documents"
+
+# Recent Rust source files
+fl s "ext:rs in:src" -s modified -l 10
+
+# Large video files anywhere
+fl s "type:file size:>500mb" -e mp4 -e mov -e mkv
+```
+
+### Wildcards
+
+```bash
+# Find all .config.js files
+fl s "*.config.js"
+
+# Find test files with single character suffix
+fl s "test?.py"
+
+# Find README files with any extension
+fl s "README.*"
+```
+
+## Sorting Results
+
+### Sort by size
+
+```bash
+# Largest first
+fl s document -s size -l 20
+
+# Find biggest files in Downloads
+fl s in:Downloads -s size -l 10
+```
+
+### Sort by date
+
+```bash
+# Most recently modified
+fl s config -s modified -l 20
+
+# Most recently created
+fl s ext:py -s created -l 10
+```
+
+### Sort alphabetically
+
+```bash
+fl s type:folder -s name
+```
+
+## Output Formats
+
+### Count matches
+
+```bash
+# How many Python files?
+fl s ext:py -c
+
+# How many files in this directory?
+fl s in:src -c
+
+# How many large files?
+fl s "size:>100mb" -c
+```
+
+### JSON output
+
+```bash
+# Output as JSON
+fl s config --json
+
+# Pipe to jq for processing
+fl s ext:json --json | jq '.[] | .path'
+fl s ext:rs --json | jq 'map(.size) | add'
+
+# Pretty print with jq
+fl s main.rs --json | jq
+```
+
+### Plain output for piping
+
+```bash
+# Just the paths
+fl s "*.json" -p
+
+# Count lines in all Python files
+fl s ext:py -p | xargs wc -l
+
+# Show contents of all config files
+fl s config.json -p | xargs cat
+
+# Delete all .tmp files (careful!)
+fl s ext:tmp -p | xargs rm
+
+# Move files to a directory
+fl s "ext:pdf in:Downloads" -p | xargs -I {} mv {} ~/Documents/
+```
+
+## Quick Actions
+
+### Open first match
+
+```bash
+# Find and open README
+fl s readme -o
+
+# Open most recent Python file
+fl s ext:py -s modified -o
+
+# Open config file
+fl s "config.json in:project" -o
+```
+
+### Show full paths
+
+```bash
+fl s config -f
+fl s in:Downloads -f -l 50
+```
+
+## File Operations
+
+### Open files
+
+```bash
+fl open package.json
+fl open ~/Documents/report.pdf
+```
+
+### Reveal in file manager
+
+```bash
+fl reveal package.json
+fl reveal ~/Downloads/file.zip
+```
+
+### Get file info
+
+```bash
+fl info package.json
+fl info ~/Documents
+```
+
+Output:
+
+```
+  📄 package.json
+  ────────────────────────────────────────
+
+  Type      JSON
+  Size      2.3K
+  Path      /Users/you/project/package.json
+  Modified  2024-01-15 14:23
+  Created   2024-01-10 09:15
+  Perms     644
+```
+
+### Copy to clipboard
+
+```bash
+fl copy ~/.zshrc
+fl copy "~/Documents/important.pdf"
+```
+
+### Move to trash
+
+```bash
+fl trash ~/old-file.txt
+fl trash ~/Downloads/temp.zip
+```
+
+## Index Information
+
+### Check index status
+
+```bash
+fl status
+```
+
+Output:
+
+```
+  ⚡ Flashlight
+  ──────────────────────────────
+
+  Files indexed  1,234,567
+
+  Indexed directories:
+    → /Users/you
+    → /Volumes/External
+```
+
+### View statistics
+
+```bash
+fl stats
+```
+
+Output:
+
+```
+  ⚡ Index Statistics
+  ──────────────────────────────────────────────────
+
+  OVERVIEW
+      Total files      1,234,567
+      Total folders    123,456
+      Total size       987.5G
+
+  TOP FILE TYPES
+             js  156,789    12.3G  ████████████████████
+             py   98,456     8.7G  ████████████
+            txt   76,543     2.1G  ██████████
+            md    54,321     1.5G  ████████
+           json   43,210     987M  ██████
+
+  LARGEST FILES
+       📄   1.2G  ~/Movies/vacation.mp4
+       📄 987.5M  ~/Downloads/ubuntu.iso
+       📄 654.3M  ~/Documents/presentation.pptx
+       📄 543.2M  ~/Photos/IMG_1234.raw
+       📄 432.1M  ~/Music/album.flac
+```
+
+### Find duplicates
+
+```bash
+# Find duplicate files
+fl dupes
+
+# Find large duplicates
+fl dupes -m 10mb
+
+# Show more duplicate groups
+fl dupes -l 20
+```
+
+Output:
+
+```
+  ⚡ Duplicate Files
+  Files with same name (min size: 1kb)
+  ──────────────────────────────────────────────────
+
+  📄 config.json (3 copies) ~24.5K wasted
+       8.2K  ~/project1/config.json
+       8.2K  ~/project2/config.json
+       8.1K  ~/backup/config.json
+
+  📄 logo.png (4 copies) ~456K wasted
+     114.2K  ~/site1/assets/logo.png
+     114.2K  ~/site2/images/logo.png
+     114.0K  ~/backup/logo.png
+     113.8K  ~/Downloads/logo.png
+
+  ─ 12 duplicate groups (37 total files) ─
+```
+
+### View recent files
+
+```bash
+fl recent
+fl recent -l 20
+```
+
+### View search history
+
+```bash
+fl history
+fl history -l 50
+fl history --clear
+```
+
+## Piping and Scripting
+
+### Count total lines of code
+
+```bash
+fl s ext:rs -p | xargs wc -l | tail -1
+fl s ext:py -p | xargs cat | wc -l
+```
+
+### Find and grep
+
+```bash
+# Search file contents
+fl s ext:js -p | xargs grep -l "TODO"
+
+# Case-insensitive search
+fl s ext:py -p | xargs grep -i "import pandas"
+```
+
+### Backup specific files
+
+```bash
+# Copy all PDFs from Downloads to Archive
+fl s "ext:pdf in:Downloads" -p | xargs -I {} cp {} ~/Archive/
+
+# Backup config files
+fl s "*.config.js" -p | xargs -I {} cp {} ~/backup/
+```
+
+### Find empty files
+
+```bash
+fl s "size:<1b" -p
+```
+
+### Check file sizes
+
+```bash
+# Total size of all Python files
+fl s ext:py -p | xargs du -ch | tail -1
+
+# Size of each file
+fl s ext:py -p | xargs du -h
+```
+
+### Combine with other tools
+
+```bash
+# Open all markdown files in vim
+fl s ext:md -p | xargs vim
+
+# Format all Python files
+fl s ext:py -p | xargs black
+
+# Lint all JavaScript files
+fl s ext:js -p | xargs eslint
+
+# Create a tar archive of all PDFs
+fl s ext:pdf -p | xargs tar -czf documents.tar.gz
+```
+
+## Shell Functions
+
+Add these to your shell configuration for quick access:
+
+### Zsh/Bash
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+
+# Search and cd to directory
+fcd() {
+  dir=$(fl s type:folder "$@" -p | head -1)
+  [ -n "$dir" ] && cd "$dir"
+}
+
+# Search and open in editor
+fe() {
+  file=$(fl s "$@" -p | head -1)
+  [ -n "$file" ] && $EDITOR "$file"
+}
+
+# Search and cat
+fc() {
+  fl s "$@" -p | xargs cat
+}
+
+# Search by modified date and open
+fm() {
+  file=$(fl s "$@" -s modified -p | head -1)
+  [ -n "$file" ] && open "$file"
+}
+```
+
+Usage:
+
+```bash
+fcd projects        # cd to first projects folder
+fe config.json      # open first config.json in $EDITOR
+fc "*.env"          # cat all .env files
+fm ext:pdf          # open most recent PDF
+```
+
+## Tips and Tricks
+
+### Limit results for performance
+
+When you know you only need a few results:
+
+```bash
+fl s config -l 5
+```
+
+### Use aliases
+
+Add to your shell config:
+
+```bash
+alias f='fl search'
+alias fo='fl search -o'     # Find and open
+alias fc='fl search -c'     # Count
+alias fp='fl search -p'     # Plain output
+```
+
+### Combine with fzf
+
+For interactive selection:
+
+```bash
+# Search and select interactively
+fl s config -p | fzf | xargs open
+
+# Multi-select and delete
+fl s ext:tmp -p | fzf -m | xargs rm
+```
+
+### Quote queries with spaces
+
+```bash
+fl s "project config"
+fl s "size:>10mb in:Downloads"
+```
+
+### Use full flag names for scripts
+
+For readability in scripts:
+
+```bash
+fl search --extension py --limit 50 --sort size --plain
+```
+
+### Check if file exists
+
+```bash
+if fl s exact-filename.txt -c | grep -q "^1$"; then
+  echo "File exists"
+fi
+```

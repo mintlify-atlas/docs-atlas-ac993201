@@ -1,0 +1,532 @@
+---
+title: "Search API"
+description: "Deep dive into Flashlight's search engine, operators, and ranking algorithm"
+---
+
+Flashlight's search engine is designed for speed and flexibility, supporting advanced operators, wildcard patterns, and diacritic-insensitive matching. All search logic is implemented in `search.rs`.
+
+## Architecture
+
+### In-Memory Search
+
+Flashlight loads all file entries into RAM for instant search:
+
+1. **Startup**: SQLite database → `EntryCache` (in-memory cache)
+2. **Search**: Query runs against RAM using parallel Rayon iterators
+3. **File Changes**: Watcher updates both SQLite and RAM cache atomically
+
+This architecture provides:
+- **Speed**: Typical search latency &lt;25ms for 1M files
+- **Persistence**: No reindexing needed after restart
+- **Real-time updates**: File changes reflected immediately
+
+### Parallel Processing
+
+Search uses Rayon's parallel iterators to leverage all CPU cores:
+
+```rust
+let scored: Vec<(i32, &FileEntry)> = entries
+    .par_iter()  // Parallel iterator
+    .filter_map(|entry| {
+        // Scoring logic
+    })
+    .collect();
+```
+
+## Search Function
+
+The main search function is `search_cached()` in `src-tauri/src/search.rs`:
+
+```rust
+pub fn search_cached(
+    entries: &[FileEntry],
+    query: &str,
+    limit: usize,
+    extensions: Option<&Vec<String>>,
+) -> Vec<SearchResult>
+```
+
+<ParamField path="entries" type="&[FileEntry]">
+  In-memory cache of all indexed files
+</ParamField>
+
+<ParamField path="query" type="&str">
+  Search query with optional operators
+</ParamField>
+
+<ParamField path="limit" type="usize">
+  Maximum number of results to return
+</ParamField>
+
+<ParamField path="extensions" type="Option<&Vec<String>>">
+  Optional extension filter (pre-computed from profile or explicit filter)
+</ParamField>
+
+### Example Usage
+
+```typescript
+import { invoke } from '@tauri-apps/api/core';
+
+// Basic search
+const results = await invoke('search', {
+  query: 'readme',
+  limit: 50,
+  extensions: null,
+  profile: null
+});
+
+// Search with extension filter
+const codeFiles = await invoke('search', {
+  query: 'config',
+  limit: 20,
+  extensions: ['rs', 'ts', 'js'],
+  profile: null
+});
+
+// Search with profile
+const images = await invoke('search', {
+  query: 'logo',
+  limit: 10,
+  extensions: null,
+  profile: 'Images' // Uses profile's extensions
+});
+```
+
+## Search Operators
+
+Search operators are parsed from the query string by `parse_operators()` in `search.rs`. They allow filtering and refining search results.
+
+### Extension Filter
+
+Filter by file extension:
+
+```
+ext:pdf          # Files with .pdf extension
+ext:rs           # Rust files
+ext:jpg          # JPEG images
+extension:docx   # Word documents
+```
+
+**TypeScript example:**
+```typescript
+const pdfs = await invoke('search', {
+  query: 'report ext:pdf',
+  limit: 20,
+  extensions: null,
+  profile: null
+});
+```
+
+### Type Filter
+
+Filter by file type or extension:
+
+```
+type:folder      # Directories only
+type:file        # Files only
+type:dir         # Alias for folder
+type:directory   # Alias for folder
+type:pdf         # Same as ext:pdf
+type:rs          # Same as ext:rs
+```
+
+**TypeScript example:**
+```typescript
+// Find all folders with "src" in the name
+const folders = await invoke('search', {
+  query: 'src type:folder',
+  limit: 50,
+  extensions: null,
+  profile: null
+});
+```
+
+### Path Filter
+
+Filter by path containing a string:
+
+```
+in:Downloads     # Files in Downloads folder
+in:Documents     # Files in Documents
+path:src         # Files with "src" in path
+path:Desktop     # Files on Desktop
+```
+
+**TypeScript example:**
+```typescript
+// Find config files in project directories
+const configs = await invoke('search', {
+  query: 'config in:projects',
+  limit: 20,
+  extensions: null,
+  profile: null
+});
+```
+
+### Size Filter
+
+Filter by file size:
+
+```
+size:>10mb       # Larger than 10 megabytes
+size:size:<1kblt;1kb        # Smaller than 1 kilobyte
+size:>500        # Larger than 500 bytes
+size:>=1gb       # At least 1 gigabyte
+size:<=100kb     # At most 100 kilobytes
+```
+
+Supported units:
+- `b` - bytes
+- `kb` - kilobytes (1024 bytes)
+- `mb` - megabytes (1024 KB)
+- `gb` - gigabytes (1024 MB)
+
+**TypeScript example:**
+```typescript
+// Find large video files
+const largeVideos = await invoke('search', {
+  query: 'type:mp4 size:>100mb',
+  limit: 10,
+  extensions: null,
+  profile: null
+});
+```
+
+### Combining Operators
+
+Multiple operators can be combined:
+
+```
+config ext:json in:projects      # JSON configs in projects
+readme type:file size:size:<10kblt;10kb      # Small readme files
+image ext:png size:>1mb          # Large PNG images
+```
+
+**TypeScript example:**
+```typescript
+const results = await invoke('search', {
+  query: 'readme ext:md in:docs type:file',
+  limit: 20,
+  extensions: null,
+  profile: null
+});
+```
+
+## Wildcard Patterns
+
+Flashlight supports wildcard patterns that are converted to regex:
+
+- `*` - Matches any characters (zero or more)
+- `?` - Matches exactly one character
+
+**Examples:**
+
+```
+*.txt            # All text files
+file?.rs         # file1.rs, fileA.rs, etc.
+test_*.py        # test_login.py, test_auth.py, etc.
+config.*.json    # config.dev.json, config.prod.json
+```
+
+**TypeScript example:**
+```typescript
+const testFiles = await invoke('search', {
+  query: 'test_*.rs',
+  limit: 50,
+  extensions: null,
+  profile: null
+});
+```
+
+### Wildcard Implementation
+
+Wildcards are converted to regex patterns in `wildcard_to_regex()`:
+
+```rust
+fn wildcard_to_regex(pattern: &str) -> Option<Regex> {
+    let mut regex_str = String::with_capacity(pattern.len() * 2);
+    regex_str.push_str("(?i)"); // case insensitive
+
+    for c in pattern.chars() {
+        match c {
+            '*' => regex_str.push_str(".*"),
+            '?' => regex_str.push('.'),
+            // Escape regex special characters
+            '.' | '+' | '^' | '$' | '(' | ')' => {
+                regex_str.push('\\');
+                regex_str.push(c);
+            }
+            _ => regex_str.push(c),
+        }
+    }
+
+    Regex::new(&regex_str).ok()
+}
+```
+
+## Diacritic-Insensitive Search
+
+Flashlight normalizes Unicode strings to provide diacritic-insensitive matching:
+
+- "café" matches "cafe"
+- "naïve" matches "naive"
+- "São Paulo" matches "sao paulo"
+
+### Normalization Process
+
+```rust
+fn normalize_string(s: &str) -> String {
+    s.nfd()  // Unicode NFD decomposition
+        .filter(|c| !c.is_mark_nonspacing())  // Remove combining marks
+        .collect::<String>()
+        .to_lowercase()
+}
+```
+
+**Example:**
+
+```typescript
+// Both queries will find "Café Menu.pdf"
+await invoke('search', { query: 'cafe', ... });
+await invoke('search', { query: 'café', ... });
+```
+
+### ASCII Fast Path
+
+For ASCII-only queries (most common case), Flashlight skips Unicode normalization and just lowercases strings, providing significant performance benefits:
+
+```rust
+let use_fast_ascii = is_ascii_only(&ops.query);
+
+let query_normalized = if use_fast_ascii {
+    ops.query.to_lowercase()  // Fast path
+} else {
+    normalize_string(&ops.query)  // Unicode normalization
+};
+```
+
+## Ranking Algorithm
+
+Flashlight uses a sophisticated scoring system to rank search results by relevance. Scores are calculated in `calculate_match_score()`.
+
+### Base Scores
+
+| Match Type | Score Range | Description |
+|------------|-------------|-------------|
+| Exact name match | 100,000 | `readme.md` exactly matches "readme.md" |
+| Basename match | 95,000 | `readme` matches "readme.md" |
+| Name starts with | 50,000-60,000 | `config.json` starts with "config" |
+| Word boundary | 29,000-30,000 | `myTest` matches "test" at boundary |
+| Name contains | 5,000-10,000 | `readme_old.md` contains "readme" |
+| Path-only match | 1,000 | Match found in path but not name |
+
+### Score Modifiers
+
+After base scoring, these modifiers are applied:
+
+1. **Length bonus**: `+5,000 / (name.len() + 1)`
+   - Shorter names rank higher
+   - `lib.rs` gets higher bonus than `library_utils.rs`
+
+2. **File bonus**: `+6,000`
+   - Files preferred over directories
+   - Most users want to open files, not folders
+
+3. **Multi-term bonus**: `+2,000`
+   - When multiple search terms all match in the name
+   - Rewards comprehensive matches
+
+### Scoring Examples
+
+**Query: "readme"**
+
+```
+readme.md           → 100,000 (exact) + 312 (length) + 6,000 (file) = 106,312
+readme              → 100,000 (exact) + 833 (length) = 100,833 (dir)
+README.txt          → 100,000 (exact) + 285 (length) + 6,000 (file) = 106,285
+my-readme.md        → 5,000 (contains) + 208 (length) + 6,000 (file) = 11,208
+docs/readme.md      → 100,000 (exact) + 312 (length) + 6,000 (file) = 106,312
+```
+
+**Query: "test config"**
+
+```
+test_config.rs      → 50,000 (prefix) + 50,000 (prefix) + 2,000 (multi) + 178 (length) + 6,000 (file) = 108,178
+config_test.py      → 50,000 + 5,000 + 2,000 + 178 + 6,000 = 63,178
+test/config.json    → 1,000 (path) + 50,000 (prefix) + 2,000 + 235 + 6,000 = 59,235
+```
+
+### Word Boundaries
+
+Word boundaries are detected for camelCase, snake_case, kebab-case, and other naming conventions:
+
+```rust
+fn find_word_boundaries(s: &str) -> Vec<usize> {
+    // Boundaries occur after:
+    // - Separators: _, -, ., space, /, \\
+    // - lowercase → UPPERCASE (camelCase)
+    // - digit → letter or letter → digit
+}
+```
+
+**Examples:**
+
+```
+"camelCase"    → boundaries at [0, 5]
+"snake_case"   → boundaries at [0, 6]
+"PascalCase"   → boundaries at [0, 6]
+"file123name" → boundaries at [0, 4, 7]
+```
+
+Word boundary matches get high scores (29,000-30,000):
+
+```typescript
+// Query "Test" matches "myTest.rs" at word boundary
+const results = await invoke('search', {
+  query: 'Test',
+  limit: 50,
+  extensions: null,
+  profile: null
+});
+// "myTest.rs" ranks higher than "latest_version.rs"
+```
+
+## Performance Characteristics
+
+### Benchmarks
+
+Typical performance on 1M indexed files:
+
+| Operation | Latency |
+|-----------|--------|
+| Simple search (1 term) | 15-25ms |
+| Multi-term search | 20-30ms |
+| Operator-based search | 25-35ms |
+| Wildcard search | 30-50ms |
+| Extension filtering | +5ms overhead |
+
+### Optimization Techniques
+
+1. **Early rejection**: Extension and type filters applied first
+2. **Lazy path computation**: Full path only computed when needed
+3. **ASCII fast path**: Skip Unicode normalization for ASCII queries
+4. **Pre-compiled regex**: Wildcard patterns compiled once
+5. **Parallel processing**: Rayon splits work across CPU cores
+6. **Efficient selection**: `select_nth_unstable_by` for top-N without full sort
+
+### Memory Usage
+
+For 1M files:
+- **In-memory cache**: ~200-300 MB
+- **Search workspace**: ~50-100 MB (temporary)
+- **Total**: ~250-400 MB typical
+
+## Search Operators Reference
+
+### Struct Definition
+
+```rust
+struct SearchOperators {
+    /// Extension filter (ext:rs, type:pdf)
+    extensions: Vec<String>,
+    /// Path must contain (in:Downloads, path:src)
+    path_contains: Vec<String>,
+    /// Minimum file size in bytes (size:>10mb)
+    min_size: Option<u64>,
+    /// Maximum file size in bytes (size:size:<1kblt;1kb)
+    max_size: Option<u64>,
+    /// Only directories (type:folder, type:dir)
+    dirs_only: bool,
+    /// Only files (type:file)
+    files_only: bool,
+    /// Remaining query text after operators removed
+    query: String,
+}
+```
+
+### Parsing
+
+Operators are parsed in `parse_operators()` by splitting the query on whitespace and detecting operator prefixes:
+
+```rust
+let ops = parse_operators("config ext:json in:projects size:>1kb");
+// ops.query = "config"
+// ops.extensions = ["json"]
+// ops.path_contains = ["projects"]
+// ops.min_size = Some(1024)
+```
+
+## Advanced Usage
+
+### Combining Filters
+
+For complex queries, combine multiple techniques:
+
+```typescript
+// Large image files in specific directory
+const results = await invoke('search', {
+  query: 'screenshot ext:png in:Desktop size:>5mb',
+  limit: 10,
+  extensions: null,
+  profile: null
+});
+
+// Test files excluding integration tests
+const unitTests = await invoke('search', {
+  query: 'test_*.rs -integration',
+  limit: 50,
+  extensions: ['rs'],
+  profile: null
+});
+```
+
+### Search with Profile + Operators
+
+Profiles and operators work together:
+
+```typescript
+// Profile provides base extensions, operator adds filters
+const results = await invoke('search', {
+  query: 'todo size:>10kb',  // Additional filters
+  limit: 20,
+  extensions: null,
+  profile: 'Code'  // Pre-filters to code extensions
+});
+```
+
+### Error Handling
+
+Search never throws errors - it returns empty results on failure:
+
+```typescript
+const results = await invoke('search', {
+  query: '',  // Empty query
+  limit: 50,
+  extensions: null,
+  profile: null
+});
+// results = [] (empty array)
+```
+
+However, the invoke itself can fail if the backend is unavailable:
+
+```typescript
+try {
+  const results = await invoke('search', { ... });
+} catch (error) {
+  console.error('Search failed:', error);
+  // Show error to user
+}
+```
+
+## Source Code References
+
+Key functions in `src-tauri/src/search.rs`:
+
+- `search_cached()` - Main search function (lines 297-564)
+- `parse_operators()` - Parse query operators (lines 56-102)
+- `calculate_match_score()` - Scoring algorithm (lines 229-274)
+- `find_word_boundaries()` - Detect word boundaries (lines 191-218)
+- `normalize_string()` - Unicode normalization (lines 104-113)
+- `wildcard_to_regex()` - Convert wildcards to regex (lines 146-164)
+- `parse_size()` - Parse size strings (lines 33-52)

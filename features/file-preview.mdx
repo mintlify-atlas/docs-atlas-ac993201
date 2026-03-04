@@ -1,0 +1,146 @@
+---
+title: File preview
+description: Preview files without opening them with support for images, code, text, markdown, and more
+---
+
+Flashlight includes a built-in file preview panel that lets you quickly view file contents without opening them in an external application. This helps you verify you've found the right file before opening it.
+
+## Opening the preview panel
+
+Toggle the preview panel using the keyboard shortcut:
+
+- **macOS**: `Cmd+P`
+- **Windows/Linux**: `Ctrl+P`
+
+You can also resize the preview panel by dragging the divider between the results list and the preview.
+
+## Supported file types
+
+### Images
+
+Flashlight displays image previews for:
+
+- PNG, JPG/JPEG
+- GIF, WebP
+- SVG, ICO
+- BMP, TIFF
+- HEIC, PSD
+
+Images are displayed at their original aspect ratio and scaled to fit the preview panel.
+
+### Text files
+
+Plain text files are displayed with their full content:
+
+- TXT, LOG
+- CSV (shown as plain text)
+- Configuration files
+- Any other text-based files
+
+The preview shows line counts and indicates if the content has been truncated for performance.
+
+### Code files
+
+Source code files are displayed with syntax highlighting:
+
+- JavaScript/TypeScript: `.js`, `.ts`, `.jsx`, `.tsx`
+- Python: `.py`
+- Rust: `.rs`
+- Go: `.go`
+- Java: `.java`
+- C/C++: `.c`, `.cpp`, `.h`, `.hpp`
+- CSS/SCSS: `.css`, `.scss`
+- HTML: `.html`
+- Vue/Svelte: `.vue`, `.svelte`
+- JSON/YAML: `.json`, `.yaml`, `.yml`
+- Shell scripts: `.sh`, `.bash`, `.zsh`
+- And many more
+
+Syntax highlighting uses `highlight.js` with automatic language detection based on file extension.
+
+### Markdown files
+
+Markdown files (`.md`, `.markdown`) are rendered with formatting:
+
+- Headings and text styling
+- Lists (ordered and unordered)
+- Code blocks with syntax highlighting
+- Blockquotes
+- Links
+- Horizontal rules
+
+The rendered markdown is displayed in a clean, readable format that respects your theme (light or dark mode).
+
+### Directories
+
+When you select a folder, the preview panel shows:
+
+- List of items in the directory
+- Number of items
+- First 100 items (if truncated, this is indicated)
+
+This gives you a quick overview of folder contents without opening the folder.
+
+### PDF files
+
+PDF files are displayed using the browser's built-in PDF viewer, allowing you to scroll through pages directly in the preview panel.
+
+### Video files
+
+Video files are displayed with playback controls:
+
+- MP4, MOV
+- AVI, MKV
+- WebM, M4V
+- WMV
+
+You can play, pause, and seek through videos directly in the preview.
+
+### Audio files
+
+Audio files show a music icon with playback controls:
+
+- MP3, WAV
+- FLAC, AAC
+- OGG, M4A
+- WMA
+
+The audio player lets you listen to files without opening them in an external player.
+
+### Archive files
+
+Archive files show their contents:
+
+- ZIP, TAR, GZ
+- 7Z, RAR
+
+The preview displays the list of files inside the archive (up to 100 files).
+
+### Table files
+
+CSV and similar tabular data files are displayed in a table format with:
+
+- Column headers
+- Row data
+- Row and column counts
+- Alternating row colors for readability
+
+The table is scrollable and shows up to 100 rows.
+
+## Preview footer
+
+For all files, the preview panel footer displays:
+
+- **Size**: File size in human-readable format (KB, MB, GB)
+- **Modified**: Last modification date and time
+
+## Binary files
+
+For binary or unsupported file types, the preview panel displays a "No preview available" message. You can still see the file's metadata in the footer.
+
+## Tips
+
+- The preview panel width is automatically saved and restored between sessions
+- Preview loading is asynchronous and won't block search results
+- Large text files are truncated at a reasonable limit to maintain performance
+- The preview respects your theme (light or dark mode) for optimal readability

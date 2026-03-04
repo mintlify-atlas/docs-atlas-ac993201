@@ -1,0 +1,83 @@
+---
+title: CLI Overview
+description: Fast file search from the terminal using the fl command-line tool
+---
+
+Flashlight includes a powerful command-line interface (`fl`) that provides instant file search capabilities directly from your terminal.
+
+## What is fl?
+
+The `fl` CLI tool is a terminal-based interface to Flashlight's file search engine. It shares the same SQLite database and in-memory index as the GUI application, giving you instant access to your entire file system from the command line.
+
+## Key Features
+
+- **Shared Index** - Uses the same database as the GUI app, no separate indexing needed
+- **Instant Search** - Search millions of files in milliseconds
+- **Search Operators** - Full support for `ext:`, `type:`, `size:`, `in:`, and wildcard patterns
+- **Multiple Output Formats** - Human-readable, JSON, or plain paths for piping
+- **Shell Completions** - Tab completion for commands and options in zsh, bash, and fish
+- **File Operations** - Open, reveal, copy, trash, and more
+- **Index Statistics** - View file counts, types, sizes, and duplicates
+- **Search History** - Track your search queries
+
+## Why Use the CLI?
+
+The CLI tool is perfect for:
+
+- **Power Users** - Keyboard-driven workflow without reaching for the mouse
+- **Scripting** - Pipe search results to other commands with `--plain` output
+- **Remote Sessions** - Search files over SSH
+- **Quick Operations** - Open or reveal files without launching the GUI
+- **Batch Processing** - Combine with xargs for bulk file operations
+
+## How It Works
+
+The `fl` CLI tool:
+
+1. Opens the same SQLite database used by the GUI (`~/Library/Application Support/flashlight/flashlight.db` on macOS)
+2. Loads file entries into memory for fast searching
+3. Uses parallel search with the same scoring algorithm as the GUI
+4. Supports all the same search operators and filters
+
+Because it shares the database with the GUI, any files indexed in the GUI are immediately searchable from the CLI, and vice versa.
+
+## Quick Start
+
+```bash
+# Search for files
+fl search config
+
+# Search with operators
+fl s ext:rs main
+
+# Open first result
+fl s readme -o
+
+# Get search count
+fl s ext:py -c
+
+# Pipe to other commands
+fl s "*.json" -p | xargs cat
+```
+
+## Performance
+
+The CLI tool delivers the same performance as the GUI:
+
+- Search latency: &lt;25ms typical, &lt;100ms worst case
+- Searches 1M+ files in milliseconds
+- Parallel search using all CPU cores
+
+## Terminal Integration
+
+After running `fl init`, you'll have:
+
+- `fl` command available in your PATH
+- Tab completion for all commands and options
+- Shell integration for zsh, bash, or fish
+
+## Next Steps
+
+- [Installation](/cli/installation) - Set up fl on your system
+- [Commands](/cli/commands) - Complete command reference
+- [Examples](/cli/examples) - Real-world usage patterns

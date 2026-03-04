@@ -1,0 +1,138 @@
+---
+title: Introduction
+description: Flashlight is a blazingly fast, cross-platform file search application that lets you find files instantly across millions of entries
+---
+
+Flashlight is a blazingly fast file search application for macOS, Windows, and Linux. Search millions of files in milliseconds with instant results, powerful operators, and a clean interface.
+
+## What is Flashlight?
+
+Flashlight is a desktop application that indexes your files once and lets you search through them instantly. Think of it as macOS Spotlight or Windows Everything, but faster, cross-platform, and with more features.
+
+<CardGroup cols={2}>
+  <Card title="Instant search" icon="bolt">
+    Search millions of files in under 25ms with parallel in-memory search
+  </Card>
+  <Card title="Cross-platform" icon="desktop">
+    Native performance on macOS, Windows, and Linux
+  </Card>
+  <Card title="Privacy-first" icon="shield">
+    Everything runs locally—no data sent to servers, no telemetry
+  </Card>
+  <Card title="Open source" icon="code">
+    MIT licensed with full source code available on GitHub
+  </Card>
+</CardGroup>
+
+## Key features
+
+### Powerful search capabilities
+
+- **Search operators** - Use `ext:pdf`, `size:>10mb`, `in:Downloads` to refine searches
+- **Wildcard support** - Search with patterns like `*.config.js` or `test?.py`
+- **Smart filters** - Quick filters for Documents, Code, Images, Audio, Video, and Folders
+- **Diacritic-insensitive** - "café" matches "cafe", "naïve" matches "naive"
+
+### Built for productivity
+
+- **Global shortcut** - Press `Cmd+Shift+Space` (macOS) or `Ctrl+Shift+Space` (Windows/Linux) from anywhere
+- **Multi-select** - Select multiple files with Cmd+click, Shift+click, or Cmd+A for batch operations
+- **File preview** - Preview text, code, images, and markdown without opening files
+- **Keyboard-first** - Navigate and perform actions without touching your mouse
+
+### Fast and efficient
+
+- **Real-time updates** - File watcher keeps the index in sync as you create, move, or delete files
+- **Persistent index** - No reindexing on restart—picks up right where you left off
+- **Memory efficient** - ~200-400 MB RAM for 1 million indexed files
+- **Fast indexing** - Index ~1 million files in under 30 seconds on first run
+
+### CLI tool included
+
+Flashlight includes a command-line tool (`fl`) that uses the same index:
+
+```bash
+fl search config.json
+fl s ext:rs main -l 50
+fl s "size:>1mb" --sort size
+```
+
+## Why choose Flashlight?
+
+Here's how Flashlight compares to popular alternatives:
+
+| Feature | Flashlight | Everything | Spotlight | Alfred |
+|---------|------------|------------|-----------|--------|
+| Cross-platform | macOS, Windows, Linux | Windows only | macOS only | macOS only |
+| Instant search (&lt;25ms) | Yes | Yes | No | Yes |
+| Search operators | Yes | Yes | Limited | Yes |
+| CLI tool | Yes | No | No | No |
+| Open source | Yes | No | No | No |
+| Privacy (no telemetry) | Yes | Yes | No | No |
+| Free | Yes | Yes | Yes | Paid |
+
+<Note>
+  **Coming from Everything?** Flashlight brings the same instant search experience to macOS and Linux with additional features like file preview and a CLI tool.
+</Note>
+
+<Note>
+  **Coming from Spotlight?** Flashlight is faster, supports powerful search operators, and respects your privacy with no telemetry.
+</Note>
+
+## System requirements
+
+Flashlight runs on modern versions of macOS, Windows, and Linux:
+
+| Platform | Minimum | Recommended |
+|----------|---------|-------------|
+| **macOS** | 10.15 (Catalina) | 12.0 (Monterey)+ |
+| **Windows** | Windows 10 (1809) | Windows 11 |
+| **Linux** | Ubuntu 20.04 / equivalent | Ubuntu 22.04+ |
+| **RAM** | 512 MB free | 2 GB free |
+| **Disk** | 100 MB for app | + space for index (~100 MB per 1M files) |
+
+<Info>
+  Memory usage scales with index size. Expect approximately 200-400 MB of RAM for 1 million indexed files.
+</Info>
+
+## How it works
+
+Flashlight uses a hybrid architecture for maximum speed:
+
+1. **SQLite database** - Persists the file index to disk so you never need to reindex after restarting
+2. **In-memory cache** - Loads the entire index into RAM on startup for instant searches
+3. **Parallel search** - Uses all CPU cores to search through millions of files in milliseconds
+4. **File watcher** - Monitors filesystem changes and updates both the database and cache in real-time
+
+<Info>
+  On Windows, when run with administrator privileges, Flashlight can use the Master File Table (MFT) for even faster indexing and the USN Journal for more efficient file watching.
+</Info>
+
+## Performance
+
+Flashlight is designed for speed:
+
+- **Indexing**: ~1 million files in under 30 seconds (first run only)
+- **Startup**: Load from SQLite in ~1-2 seconds
+- **Search**: &lt;25ms for typical queries on 1M+ files
+- **Memory**: ~200-400 MB for 1 million files in RAM
+
+## Privacy and security
+
+Flashlight respects your privacy:
+
+- All processing happens locally on your machine
+- No data is sent to any server
+- No telemetry or analytics
+- Index is stored locally in your application data folder
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Download and install Flashlight on your platform
+  </Card>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Learn the basics and start searching
+  </Card>
+</CardGroup>

@@ -1,0 +1,223 @@
+---
+title: CLI Installation
+description: Install and configure the fl command-line tool with shell completions
+---
+
+The `fl` CLI tool is included when you build Flashlight from source. Follow these steps to install and configure it for your shell.
+
+## Prerequisites
+
+- [Rust](https://rustup.rs/) installed
+- Flashlight source code cloned
+- [pnpm](https://pnpm.io/) installed
+
+## Building from Source
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/yang-29/flashlight.git
+cd flashlight
+```
+
+### 2. Build the CLI Binary
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build the CLI tool
+cargo build --release --bin fl
+```
+
+The binary will be created at `src-tauri/target/release/fl`.
+
+### 3. Run the Setup Command
+
+The easiest way to set up the CLI is to use the built-in `init` command:
+
+```bash
+./src-tauri/target/release/fl init
+```
+
+This command automatically:
+
+- Creates `~/.local/bin` directory
+- Symlinks `fl` to `~/.local/bin/fl`
+- Adds `~/.local/bin` to your PATH (if needed)
+- Generates shell completions for your detected shell
+- Updates your shell RC file (~/.zshrc, ~/.bashrc, or ~/.config/fish/config.fish)
+
+Output example:
+
+```
+  ⚡ Flashlight Setup
+  ──────────────────────────────
+
+  → Detected shell: zsh
+  ✓ Created /Users/you/.zsh/completions
+  ✓ Generated completions at /Users/you/.zsh/completions/_fl
+  ✓ Added completions to /Users/you/.zshrc
+  ✓ Linked fl → /path/to/flashlight/src-tauri/target/release/fl
+
+  ✓ Setup complete!
+
+  Restart your terminal or run:
+      source /Users/you/.zshrc
+```
+
+### 4. Reload Your Shell
+
+```bash
+# For zsh
+source ~/.zshrc
+
+# For bash
+source ~/.bashrc
+
+# For fish
+source ~/.config/fish/config.fish
+
+# Or simply restart your terminal
+```
+
+### 5. Verify Installation
+
+```bash
+fl --version
+```
+
+You should see:
+
+```
+  ⚡ Flashlight v0.1.0
+```
+
+## Shell Completions
+
+Completions provide tab completion for commands, options, and arguments.
+
+### Automatic Setup (Recommended)
+
+The `fl init` command automatically sets up completions for your shell.
+
+### Manual Setup
+
+If you prefer manual setup or need to regenerate completions:
+
+#### Zsh
+
+```bash
+# Create completions directory
+mkdir -p ~/.zsh/completions
+
+# Generate completions
+fl completions zsh > ~/.zsh/completions/_fl
+
+# Add to ~/.zshrc (if not already present)
+echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc
+echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
+
+# Reload
+source ~/.zshrc
+```
+
+#### Bash
+
+```bash
+# Create completions directory
+mkdir -p ~/.bash_completion.d
+
+# Generate completions
+fl completions bash > ~/.bash_completion.d/fl.bash
+
+# Add to ~/.bashrc (if not already present)
+echo 'source ~/.bash_completion.d/fl.bash' >> ~/.bashrc
+
+# Reload
+source ~/.bashrc
+```
+
+#### Fish
+
+```bash
+# Create completions directory
+mkdir -p ~/.config/fish/completions
+
+# Generate completions
+fl completions fish > ~/.config/fish/completions/fl.fish
+
+# Fish auto-loads completions, no RC file changes needed
+# Reload
+source ~/.config/fish/config.fish
+```
+
+## PATH Configuration
+
+The `fl` binary needs to be in your PATH to be accessible from anywhere.
+
+### Default Location
+
+The `fl init` command symlinks the binary to `~/.local/bin/fl` and adds that directory to your PATH.
+
+### Custom Location
+
+If you want to use a custom location:
+
+```bash
+# Copy or symlink to a directory in your PATH
+sudo ln -s /path/to/flashlight/src-tauri/target/release/fl /usr/local/bin/fl
+
+# Or add the target/release directory to your PATH
+echo 'export PATH="/path/to/flashlight/src-tauri/target/release:$PATH"' >> ~/.zshrc
+```
+
+## Updating the CLI
+
+When you update Flashlight:
+
+```bash
+# Pull latest changes
+git pull origin main
+
+# Rebuild the CLI
+cargo build --release --bin fl
+
+# The symlink from fl init will automatically use the new binary
+# No need to run fl init again
+```
+
+## Troubleshooting
+
+### "fl: command not found"
+
+- Verify `~/.local/bin` is in your PATH: `echo $PATH`
+- Restart your terminal or source your RC file
+- Check the symlink exists: `ls -la ~/.local/bin/fl`
+
+### Completions Not Working
+
+**Zsh:**
+- Verify fpath includes completions directory: `echo $fpath`
+- Check the `_fl` file exists: `ls ~/.zsh/completions/_fl`
+- Try rebuilding completion cache: `rm ~/.zcompdump && compinit`
+
+**Bash:**
+- Verify the source line is in ~/.bashrc
+- Check the fl.bash file exists: `ls ~/.bash_completion.d/fl.bash`
+
+**Fish:**
+- Verify the completions file exists: `ls ~/.config/fish/completions/fl.fish`
+- Fish loads completions automatically, no configuration needed
+
+### Permission Issues
+
+```bash
+# Make the binary executable
+chmod +x src-tauri/target/release/fl
+```
+
+## Next Steps
+
+- [Commands](/cli/commands) - Learn all available commands
+- [Examples](/cli/examples) - See real-world usage patterns
