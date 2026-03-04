@@ -1,0 +1,111 @@
+{
+  "projectType": "saas",
+  "projectName": "Flashlight",
+  "projectDescription": "A blazingly fast cross-platform file search application for macOS, Windows, and Linux",
+  "theme": "aspen",
+  "primaryColor": "#94cb04",
+  "lightColor": "#545454",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/search-operators",
+              "features/file-preview",
+              "features/multi-select",
+              "features/keyboard-shortcuts",
+              "features/context-menu"
+            ]
+          },
+          {
+            "group": "CLI Tool",
+            "pages": [
+              "cli/overview",
+              "cli/installation",
+              "cli/commands",
+              "cli/examples"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/configuration",
+              "advanced/performance",
+              "advanced/architecture",
+              "advanced/building-from-source"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "API",
+            "pages": [
+              "api/tauri-commands",
+              "api/search-api",
+              "api/file-operations"
+            ]
+          },
+          {
+            "group": "Support",
+            "pages": [
+              "troubleshooting",
+              "faq",
+              "changelog"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Instant search across millions of files in milliseconds",
+    "Advanced search operators (ext:, type:, size:, in:)",
+    "Global keyboard shortcut for quick access",
+    "Real-time file system monitoring and updates",
+    "Cross-platform support (macOS, Windows, Linux)",
+    "File preview for text, code, images, and markdown",
+    "Multi-select with batch operations",
+    "Command-line interface (fl) with shell completions",
+    "Persistent SQLite index - no reindexing on restart",
+    "Privacy-focused with no telemetry"
+  ],
+  "publicApiSurface": [
+    "search(query, limit, extensions, profile)",
+    "get_index_status()",
+    "reindex()",
+    "open_file(path)",
+    "open_with_app(path, app)",
+    "open_with_picker(path)",
+    "open_in_terminal(path)",
+    "reveal_in_folder(path)",
+    "move_to_trash(path)",
+    "rename_file(path, newName)",
+    "copy_file_to_clipboard(path)",
+    "get_file_preview(path)",
+    "get_config()",
+    "save_config(config)",
+    "fl search",
+    "fl open",
+    "fl reveal",
+    "fl status",
+    "fl stats",
+    "fl recent",
+    "fl history",
+    "fl dupes"
+  ]
+}
