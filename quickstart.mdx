@@ -77,7 +77,7 @@ Power up your searches with operators:
 
 Use `ext:` to find files with a specific extension:
 
-```
+```text
 report ext:pdf
 ```
 
@@ -87,7 +87,7 @@ Finds all PDF files with "report" in the name.
 
 Use `size:>` for minimum size or `size:<` for maximum size:
 
-```
+```text
 size:>10mb
 video size:<100mb
 ```
@@ -98,7 +98,7 @@ Supported units: `b`, `kb`, `mb`, `gb`
 
 Use `in:` or `path:` to search within a specific directory:
 
-```
+```text
 config in:Downloads
 readme path:projects
 ```
@@ -107,7 +107,7 @@ readme path:projects
 
 Use `type:` to filter by file type:
 
-```
+```text
 type:folder
 type:file
 type:pdf
@@ -117,7 +117,7 @@ type:pdf
 
 You can combine multiple operators in one query:
 
-```
+```text
 report ext:pdf size:>1mb in:Documents
 config ext:js,json path:src
 ```
@@ -133,7 +133,7 @@ Flashlight supports wildcard patterns for advanced searches:
 - `*` matches any characters
 - `?` matches a single character
 
-```
+```text
 *.config.js
 test?.py
 readme.*
@@ -376,7 +376,7 @@ type:file size:>50mb in:Downloads
 
 ### Customizing indexed directories
 
-By default, Flashlight indexes your home directory. You can add or exclude directories in the settings (coming soon).
+By default, Flashlight indexes your home directory. You can add or exclude directories in the configuration. See [Configuration](/advanced/configuration) for details on managing indexed directories.
 
 ## Next steps
 
